@@ -1,3 +1,4 @@
+// src/app/page.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -10,27 +11,24 @@ export default function HomePage() {
   const handleJoinRoom = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!roomName.trim()) return;
-
     const slug = roomName
       .trim()
       .toLowerCase()
       .replace(/\s+/g, "-")
       .replace(/[^a-z0-9-]/g, "");
-
     router.push(`/board/${slug}`);
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
+    <main className="flex min-h-screen flex-col items-center justify-center p-8 hero-background">
       <div className="text-center space-y-6">
         <h1 className="text-5xl md:text-7xl font-bold text-accent">
-          Liveboard
+          Holoboard
         </h1>
         <p className="text-lg md:text-xl text-foreground/80 max-w-2xl">
           The holographic canvas for your team's ideas. Create a board, share
           the link, and collaborate in real-time.
         </p>
-
         <form
           onSubmit={handleJoinRoom}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"

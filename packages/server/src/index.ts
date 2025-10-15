@@ -15,13 +15,18 @@ const io = new Server(server.server, {
   },
 });
 
-// --- NEW: The server's memory ---
 interface Point {
   x: number;
   y: number;
 }
-const roomStates: Record<string, Point[][]> = {};
-// ---------------------------------
+
+interface LineData {
+  points: Point[];
+  color: string;
+}
+
+// Correct: roomStates now correctly stores an array of LineData objects
+const roomStates: Record<string, LineData[]> = {};
 
 interface SocketWithRoom extends Socket {
   roomId?: string;
@@ -35,37 +40,31 @@ io.on("connection", (socket: SocketWithRoom) => {
     socket.roomId = roomId;
     console.log(`User ${socket.id} joined room ${roomId}`);
 
-    // --- NEW: When a user joins, send them the current state of the canvas ---
+    // Correct: When a user joins, send them the current state of the canvas (LineData[])
     if (roomStates[roomId]) {
-      // Send only to the newly connected client
       socket.emit("canvas-state", roomStates[roomId]);
-    }
-    // ------------------------------------------------------------------------
-  });
-
-  socket.on("start-drawing", (data) => {
-    if (socket.roomId) {
-      // --- MODIFIED: Update the state in memory ---
-      if (!roomStates[socket.roomId]) {
-        roomStates[socket.roomId] = [];
-      }
-      roomStates[socket.roomId].push([data]);
-      // ------------------------------------------
-      socket.to(socket.roomId).emit("start-drawing", data);
+    } else {
+      roomStates[roomId] = []; // Initialize room if it doesn't exist
     }
   });
 
-  socket.on("drawing", (data) => {
-    if (socket.roomId) {
-      // --- MODIFIED: Update the state in memory ---
-      const lastLine =
-        roomStates[socket.roomId][roomStates[socket.roomId].length - 1];
-      if (lastLine) {
-        lastLine.push(data);
-      }
-      // ------------------------------------------
-      socket.to(socket.roomId).emit("drawing", data);
+  // Correct: start-drawing now correctly expects and stores LineData, and emits full LineData
+  socket.on("start-drawing", (data: LineData & { roomId: string }) => {
+    // We already ensured roomStates[data.roomId] exists in join-room or previous start-drawing
+    roomStates[data.roomId].push({ points: data.points, color: data.color });
+    // Emit the complete LineData object including 'color' to others
+    socket
+      .to(data.roomId)
+      .emit("start-drawing", { points: data.points, color: data.color });
+  });
+
+  // Correct: The 'drawing' event handler should only push the Point.
+  socket.on("drawing", (data: Point & { roomId: string }) => {
+    const linesInRoom = roomStates[data.roomId];
+    if (linesInRoom && linesInRoom.length > 0) {
+      linesInRoom[linesInRoom.length - 1].points.push(data);
     }
+    socket.to(data.roomId).emit("drawing", data);
   });
 
   socket.on("finish-drawing", () => {
@@ -76,15 +75,15 @@ io.on("connection", (socket: SocketWithRoom) => {
 
   socket.on("clear", () => {
     if (socket.roomId) {
-      // --- MODIFIED: Clear the state in memory ---
       roomStates[socket.roomId] = [];
-      // -----------------------------------------
       io.to(socket.roomId).emit("clear");
     }
   });
 
   socket.on("disconnect", () => {
     console.log("A user disconnected", socket.id);
+    // Optional: Clean up empty rooms or rooms where all users have disconnected
+    // For now, roomStates will persist even if empty, which is fine for a simple whiteboard
   });
 });
 
