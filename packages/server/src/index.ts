@@ -1,70 +1,101 @@
-// packages/server/src/index.ts
 import fastify from "fastify";
 import { Server, Socket } from "socket.io";
 import cors from "@fastify/cors";
+import { Point, LineShape, RectShape, Shape } from "./types";
 
 const server = fastify();
 
+// Allow CORS from environment variable or default to localhost
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:3000"];
+
 server.register(cors, {
-  origin: "http://localhost:3000",
+  origin: allowedOrigins,
 });
 
 const io = new Server(server.server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: allowedOrigins,
   },
 });
 
-interface Point {
-  x: number;
-  y: number;
+interface UserProfile {
+  id: string;
+  username: string;
+  avatar: string;
 }
 
-interface LineData {
-  points: Point[];
-  color: string;
+interface Participant {
+  id: string;
+  profile: UserProfile;
 }
 
-// Correct: roomStates now correctly stores an array of LineData objects
-const roomStates: Record<string, LineData[]> = {};
+const roomStates: Record<string, Shape[]> = {};
+const roomParticipants: Record<string, Participant[]> = {};
 
 interface SocketWithRoom extends Socket {
   roomId?: string;
 }
 
 io.on("connection", (socket: SocketWithRoom) => {
-  console.log("A user connected", socket.id);
+  socket.on(
+    "join-room",
+    (data: { roomId: string; userProfile: UserProfile }) => {
+      const { roomId, userProfile } = data;
 
-  socket.on("join-room", (roomId) => {
-    socket.join(roomId);
-    socket.roomId = roomId;
-    console.log(`User ${socket.id} joined room ${roomId}`);
+      if (!roomId || !userProfile || !userProfile.username) {
+        console.error("Invalid join-room data received:", data);
+        return;
+      }
 
-    // Correct: When a user joins, send them the current state of the canvas (LineData[])
-    if (roomStates[roomId]) {
+      const MAX_PARTICIPANTS = 5;
+      if (
+        roomParticipants[roomId] &&
+        roomParticipants[roomId].length >= MAX_PARTICIPANTS
+      ) {
+        socket.emit("room-full");
+        return;
+      }
+
+      socket.join(roomId);
+      socket.roomId = roomId;
+
+      if (!roomStates[roomId]) {
+        roomStates[roomId] = [];
+      }
+      if (!roomParticipants[roomId]) {
+        roomParticipants[roomId] = [];
+      }
+
+      const newParticipant: Participant = {
+        id: socket.id,
+        profile: userProfile,
+      };
+      roomParticipants[roomId].push(newParticipant);
+
       socket.emit("canvas-state", roomStates[roomId]);
-    } else {
-      roomStates[roomId] = []; // Initialize room if it doesn't exist
+      io.to(roomId).emit("room-participants", roomParticipants[roomId]);
     }
+  );
+
+  socket.on("start-drawing", (data: Shape & { roomId: string }) => {
+    const { roomId, ...shape } = data;
+    if (!roomStates[roomId]) roomStates[roomId] = [];
+    roomStates[roomId].push(shape as Shape);
+    socket.to(roomId).emit("start-drawing", shape);
   });
 
-  // Correct: start-drawing now correctly expects and stores LineData, and emits full LineData
-  socket.on("start-drawing", (data: LineData & { roomId: string }) => {
-    // We already ensured roomStates[data.roomId] exists in join-room or previous start-drawing
-    roomStates[data.roomId].push({ points: data.points, color: data.color });
-    // Emit the complete LineData object including 'color' to others
-    socket
-      .to(data.roomId)
-      .emit("start-drawing", { points: data.points, color: data.color });
-  });
-
-  // Correct: The 'drawing' event handler should only push the Point.
   socket.on("drawing", (data: Point & { roomId: string }) => {
-    const linesInRoom = roomStates[data.roomId];
-    if (linesInRoom && linesInRoom.length > 0) {
-      linesInRoom[linesInRoom.length - 1].points.push(data);
+    const { roomId, ...point } = data;
+    const shapesInRoom = roomStates[roomId];
+    if (shapesInRoom && shapesInRoom.length > 0) {
+      const lastShape = shapesInRoom[shapesInRoom.length - 1];
+      if (lastShape.type === "line") {
+        (lastShape as LineShape).points.push(point as Point);
+      }
     }
-    socket.to(data.roomId).emit("drawing", data);
+    socket.to(roomId).emit("drawing", point);
   });
 
   socket.on("finish-drawing", () => {
@@ -73,24 +104,98 @@ io.on("connection", (socket: SocketWithRoom) => {
     }
   });
 
-  socket.on("clear", () => {
-    if (socket.roomId) {
-      roomStates[socket.roomId] = [];
-      io.to(socket.roomId).emit("clear");
+  socket.on(
+    "drawing-shape-update",
+    (data: { shape: Shape; roomId: string }) => {
+      const { roomId, shape } = data;
+      const shapesInRoom = roomStates[roomId];
+      if (shapesInRoom) {
+        const shapeIndex = shapesInRoom.findIndex((s) => s.id === shape.id);
+        if (shapeIndex !== -1) {
+          shapesInRoom[shapeIndex] = shape;
+        } else {
+          shapesInRoom.push(shape);
+        }
+      }
+      socket.to(roomId).emit("drawing-shape-update", shape);
+    }
+  );
+
+  socket.on("shape-transformed", (data: { shape: Shape; roomId: string }) => {
+    const { roomId, shape } = data;
+    const shapesInRoom = roomStates[roomId];
+    if (shapesInRoom) {
+      const idx = shapesInRoom.findIndex((s) => s.id === shape.id);
+      if (idx !== -1) {
+        shapesInRoom[idx] = shape;
+      } else {
+        shapesInRoom.push(shape);
+      }
+    }
+    socket.to(roomId).emit("shape-transformed", shape);
+  });
+
+  socket.on(
+    "delete-shape",
+    ({ id, roomId }: { id: string; roomId: string }) => {
+      const shapesInroom = roomStates[roomId];
+      if (shapesInroom) {
+        roomStates[roomId] = shapesInroom.filter((shape) => shape.id !== id);
+        socket.to(roomId).emit("shape-deleted", id);
+      }
+    }
+  );
+
+  socket.on(
+    "canvas-state-update",
+    (data: { shapes: Shape[]; roomId: string }) => {
+      const { roomId, shapes } = data;
+      roomStates[roomId] = shapes;
+      socket.to(roomId).emit("canvas-state", shapes);
+    }
+  );
+
+  socket.on("clear", (roomId: string) => {
+    if (roomId) {
+      roomStates[roomId] = [];
+      io.to(roomId).emit("clear");
     }
   });
 
+  socket.on(
+    "cursor-move",
+    (data: { roomId: string; x: number; y: number; user: UserProfile }) => {
+      const { roomId, x, y, user } = data;
+      socket.to(roomId).emit("cursor-move", { userId: socket.id, x, y, user });
+    }
+  );
+
   socket.on("disconnect", () => {
-    console.log("A user disconnected", socket.id);
-    // Optional: Clean up empty rooms or rooms where all users have disconnected
-    // For now, roomStates will persist even if empty, which is fine for a simple whiteboard
+    const roomId = socket.roomId;
+
+    if (roomId && roomParticipants[roomId]) {
+      socket.to(roomId).emit("cursor-leave", socket.id);
+
+      roomParticipants[roomId] = roomParticipants[roomId].filter(
+        (p) => p.id !== socket.id
+      );
+
+      io.to(roomId).emit("room-participants", roomParticipants[roomId]);
+
+      if (roomParticipants[roomId].length === 0) {
+        delete roomParticipants[roomId];
+      }
+    }
   });
 });
 
 const start = async () => {
   try {
-    await server.listen({ port: 3001 });
-    console.log("Server listening on http://localhost:3001");
+    const PORT = parseInt(process.env.PORT || "3001", 10);
+    const HOST = process.env.HOST || "0.0.0.0";
+
+    await server.listen({ port: PORT, host: HOST });
+    console.log(`Server listening on ${HOST}:${PORT}`);
   } catch (err) {
     server.log.error(err);
     process.exit(1);

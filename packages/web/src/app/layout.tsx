@@ -1,13 +1,24 @@
 // src/app/layout.tsx
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Orbitron } from "next/font/google";
 import "./globals.css";
 
-const orbitron = Orbitron({ subsets: ["latin"] });
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+});
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Holoboard",
   description: "A real-time collaborative whiteboard built with Next.js",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({

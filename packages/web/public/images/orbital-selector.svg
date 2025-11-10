@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#58A6FF"/>
+      <stop offset="1" stop-color="#8E44AD"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" rx="12" fill="#0b0b0b" />
+  <g transform="translate(100,100)">
+    <circle r="40" fill="url(#g)" opacity="0.12" />
+    <g>
+      <circle r="8" cx="-60" cy="0" fill="#58A6FF" />
+      <circle r="8" cx="60" cy="0" fill="#E74C3C" />
+      <circle r="8" cx="0" cy="-60" fill="#2ECC71" />
+      <circle r="8" cx="0" cy="60" fill="#F1C40F" />
+      <circle r="14" r="14" fill="#ffffff" opacity="0.08" />
+    </g>
+    <text x="0" y="60" fill="#cbd5e1" font-size="12" text-anchor="middle">Orbital Selector</text>
+  </g>
+</svg>

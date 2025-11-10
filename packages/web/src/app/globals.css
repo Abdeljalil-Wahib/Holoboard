@@ -1,5 +1,216 @@
-
 @import "tailwindcss";
+
+@layer components {
+  .holo-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: theme("colors.cyan.300") theme("colors.gray.900");
+  }
+
+  .holo-scrollbar::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .holo-scrollbar::-webkit-scrollbar-track {
+    background: theme("colors.gray.900");
+    border-radius: 10px;
+  }
+
+  .holo-scrollbar::-webkit-scrollbar-thumb {
+    background-color: theme("colors.cyan.300");
+    border-radius: 10px;
+    border: 2px solid theme("colors.gray.900");
+  }
+
+  .holo-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: theme("colors.cyan.200");
+  }
+
+  .holo-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(to right, #06b6d4 0%, #22d3ee 100%);
+    outline: none;
+    border-radius: 8px;
+    height: 6px;
+  }
+
+  .holo-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: #22d3ee;
+    cursor: pointer;
+    border-radius: 50%;
+    box-shadow: 0 0 4px rgba(34, 211, 238, 0.4), 0 0 8px rgba(34, 211, 238, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .holo-slider::-webkit-slider-thumb:hover {
+    background: #67e8f9;
+    box-shadow: 0 0 6px rgba(103, 232, 249, 0.5),
+      0 0 12px rgba(103, 232, 249, 0.3);
+    transform: scale(1.1);
+  }
+
+  .holo-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: #22d3ee;
+    cursor: pointer;
+    border-radius: 50%;
+    border: none;
+    box-shadow: 0 0 4px rgba(34, 211, 238, 0.4), 0 0 8px rgba(34, 211, 238, 0.2);
+    transition: all 0.2s ease;
+  }
+
+  .holo-slider::-moz-range-thumb:hover {
+    background: #67e8f9;
+    box-shadow: 0 0 6px rgba(103, 232, 249, 0.5),
+      0 0 12px rgba(103, 232, 249, 0.3);
+    transform: scale(1.1);
+  }
+
+  .holo-slider::-moz-range-track {
+    background: linear-gradient(to right, #06b6d4 0%, #22d3ee 100%);
+    border-radius: 8px;
+    height: 6px;
+  }
+
+  /* Holographic Checkbox Styles */
+  .holo-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(103, 232, 249, 0.4);
+    border-radius: 4px;
+    background: linear-gradient(
+      135deg,
+      rgba(6, 182, 212, 0.1) 0%,
+      rgba(168, 85, 247, 0.1) 100%
+    );
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 8px rgba(6, 182, 212, 0.2);
+  }
+
+  .holo-checkbox:hover {
+    border-color: rgba(103, 232, 249, 0.6);
+    box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+    background: linear-gradient(
+      135deg,
+      rgba(6, 182, 212, 0.15) 0%,
+      rgba(168, 85, 247, 0.15) 100%
+    );
+  }
+
+  .holo-checkbox:checked {
+    background: linear-gradient(
+      135deg,
+      rgba(6, 182, 212, 0.3) 0%,
+      rgba(168, 85, 247, 0.3) 100%
+    );
+    border-color: #22d3ee;
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.5),
+      inset 0 0 8px rgba(34, 211, 238, 0.3);
+  }
+
+  .holo-checkbox:checked::after {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0px;
+    width: 6px;
+    height: 10px;
+    border: solid #22d3ee;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    filter: drop-shadow(0 0 3px rgba(34, 211, 238, 0.8));
+  }
+
+  .holo-checkbox:focus {
+    outline: none;
+    border-color: #67e8f9;
+    box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.2),
+      0 0 15px rgba(6, 182, 212, 0.4);
+  }
+
+  /* Holographic Select/Dropdown Styles */
+  .holo-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: linear-gradient(
+      135deg,
+      rgba(6, 182, 212, 0.15) 0%,
+      rgba(168, 85, 247, 0.15) 100%
+    );
+    border: 1px solid rgba(103, 232, 249, 0.4);
+    border-radius: 6px;
+    padding: 8px 32px 8px 12px;
+    color: #a5f3fc;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.2),
+      inset 0 0 15px rgba(6, 182, 212, 0.05);
+    backdrop-filter: blur(12px);
+    background-image: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, 0.15) 0%,
+        rgba(168, 85, 247, 0.15) 100%
+      ),
+      url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%2322d3ee' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat, no-repeat;
+    background-position: center, right 10px center;
+    background-size: 100%, 12px 8px;
+    color-scheme: dark;
+  }
+
+  .holo-select:hover {
+    border-color: rgba(103, 232, 249, 0.6);
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.4),
+      inset 0 0 20px rgba(6, 182, 212, 0.08);
+    background: linear-gradient(
+      135deg,
+      rgba(6, 182, 212, 0.2) 0%,
+      rgba(168, 85, 247, 0.2) 100%
+    );
+    background-image: linear-gradient(
+        135deg,
+        rgba(6, 182, 212, 0.2) 0%,
+        rgba(168, 85, 247, 0.2) 100%
+      ),
+      url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%2367e8f9' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat, no-repeat;
+    background-position: center, right 10px center;
+    background-size: 100%, 12px 8px;
+  }
+
+  .holo-select:focus {
+    outline: none;
+    border-color: #22d3ee;
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.2),
+      0 0 20px rgba(6, 182, 212, 0.5), inset 0 0 25px rgba(6, 182, 212, 0.1);
+  }
+
+  .holo-select option {
+    background: #0a0a0a !important;
+    background-color: #0a0a0a !important;
+    color: #a5f3fc !important;
+    padding: 8px;
+  }
+
+  /* Active/selected option styling only */
+  .holo-select option[selected] {
+    background: rgba(34, 211, 238, 0.4) !important;
+    background-color: rgba(34, 211, 238, 0.4) !important;
+    color: #000000 !important;
+    font-weight: 700 !important;
+  }
+}
 
 :root {
   --background: #ffffff;

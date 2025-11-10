@@ -1,0 +1,82 @@
+"use client";
+
+import React, { useRef, useEffect } from "react";
+import { Text } from "react-konva";
+import { TextShape } from "../lib/types";
+import { TOOLS } from "../lib/tools";
+import type Konva from "konva";
+
+interface EditableTextProps {
+  shape: TextShape;
+  isEditing: boolean;
+  isSelected: boolean;
+  activeTool: import("../lib/tools").Tool;
+  onShapeChange?: (shape: TextShape) => void;
+  [key: string]: any;
+}
+
+// This is your original font loader
+
+const EditableText: React.FC<EditableTextProps> = ({
+  shape,
+  isEditing,
+  isSelected,
+  activeTool,
+  onShapeChange,
+  ...rest
+}) => {
+  const textRef = useRef<Konva.Text>(null);
+  const isDraggable = isSelected && activeTool === TOOLS.SELECT;
+
+  useEffect(() => {
+    if (textRef.current) {
+      textRef.current.getLayer()?.batchDraw();
+    }
+  }, [shape.fontWeight, shape.text, shape.fontFamily]);
+
+  const mapWeightToFontStyle = (weight: string | number) => {
+    const lw = String(weight).toLowerCase();
+    if (lw === "bold" || lw === "700") return "bold";
+    if (lw === "semibold" || lw === "600") return "italic";
+    return "normal";
+  };
+  // --- END FIX ---
+
+  const handleDragEnd = (e: any) => {
+    if (onShapeChange) {
+      const node = e.target;
+      const updatedShape: TextShape = {
+        ...shape,
+        x: node.x(),
+        y: node.y(),
+      };
+      onShapeChange(updatedShape);
+    }
+  };
+
+  if (isEditing) return null;
+
+  return (
+    <Text
+      ref={textRef}
+      id={shape.id}
+      x={shape.x}
+      y={shape.y}
+      text={shape.text}
+      opacity={shape.opacity}
+      fontSize={shape.fontSize}
+      fontFamily={shape.fontFamily}
+      fontStyle={mapWeightToFontStyle(shape.fontWeight)}
+      fill={shape.color}
+      rotation={shape.rotation}
+      draggable={isDraggable}
+      onDragEnd={handleDragEnd}
+      width={shape.width}
+      height={shape.height}
+      wrap="char"
+      {...rest}
+    />
+  );
+};
+
+export default EditableText;

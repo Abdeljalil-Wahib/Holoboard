@@ -4,7 +4,7 @@
 import { useEffect, useState, useMemo } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { type Container, type ISourceOptions } from "@tsparticles/engine";
-import { loadSlim } from "@tsparticles/slim"; 
+import { loadSlim } from "@tsparticles/slim";
 
 export default function AnimatedBackground() {
   const [init, setInit] = useState(false);
@@ -17,9 +17,7 @@ export default function AnimatedBackground() {
     });
   }, []);
 
-  const particlesLoaded = async (container?: Container): Promise<void> => {
-    console.log("Particles loaded", container);
-  };
+  const particlesLoaded = async (container?: Container): Promise<void> => {};
 
   const options: ISourceOptions = useMemo(
     () => ({
@@ -45,13 +43,13 @@ export default function AnimatedBackground() {
       },
       particles: {
         color: {
-          value: "#58A6FF",
+          value: "#22d3ee",
         },
         links: {
-          color: "#58A6FF",
+          color: "#22d3ee",
           distance: 150,
           enable: true,
-          opacity: 0.15,
+          opacity: 0.3,
           width: 1,
         },
         move: {
@@ -71,18 +69,29 @@ export default function AnimatedBackground() {
           value: 80,
         },
         opacity: {
-          value: 0.2,
+          value: 0.5,
+          animation: {
+            enable: true,
+            speed: 0.5,
+            minimumValue: 0.3,
+            sync: false,
+          },
         },
         shape: {
           type: "circle",
         },
         size: {
-          value: { min: 1, max: 2 },
+          value: { min: 1, max: 3 },
+        },
+        shadow: {
+          enable: true,
+          color: "#22d3ee",
+          blur: 3,
         },
       },
       detectRetina: true,
     }),
-    [],
+    []
   );
 
   if (init) {
