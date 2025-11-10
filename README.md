@@ -2,7 +2,7 @@
 
 A real-time collaborative whiteboard with a stunning holographic UI, built with Next.js and Socket.IO.
 
-![Holoboard](./packages/web/public/images/hero-bg.png)
+
 
 ## ✨ Features
 
@@ -122,28 +122,3 @@ holoboard/
 - `Alt` - Toggle sidebar
 - `Del/Backspace` - Delete selected shapes
 
-## 🚀 Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
-
-**Quick Deploy:**
-
-- Frontend: Deploy to [Vercel](https://vercel.com)
-- Backend: Deploy to [Railway](https://railway.app) or [Render](https://render.com)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-- Design inspired by holographic and futuristic UI concepts
-- Built with amazing open-source tools and libraries
-
----
-
-Made with ❤️ by [Your Name]
