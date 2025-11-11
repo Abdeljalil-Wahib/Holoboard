@@ -7,12 +7,17 @@ import { useUser } from "../hooks/useUser";
 import { AVATAR_PRESETS, AvatarIcon } from "../lib/avatars";
 import { useRoomHistory } from "../hooks/useRoomHistory";
 import RoomHistoryCard from "../components/RoomHistoryCard";
+import AnimatedBackground from "../components/AnimatedBackground";
 import { FaSpinner } from "react-icons/fa";
 
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [roomName, setRoomName] = useState("");
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionPhase, setTransitionPhase] = useState<
+    "idle" | "dimming" | "entrance"
+  >("idle");
 
   const { user, saveUser, isLoading: isUserLoading } = useUser();
   const {
@@ -32,7 +37,10 @@ function HomePageContent() {
 
   const handleJoinRoom = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (!roomName.trim() || !user || !user.username.trim()) return;
+    if (isTransitioning) return; // Prevent multiple clicks
 
     saveUser(user);
 
@@ -44,7 +52,55 @@ function HomePageContent() {
 
     addRoomToHistory({ name: roomName, slug });
 
-    router.push(`/board/${slug}`);
+    // Start transition sequence
+    console.log("Starting transition...");
+    setIsTransitioning(true);
+    setTransitionPhase("dimming");
+
+    // After components fade and lights dim, start entrance animation
+    const entranceTimer = setTimeout(() => {
+      console.log("Entrance phase...");
+      setTransitionPhase("entrance");
+    }, 700);
+
+    // Navigate to board after full animation completes
+    const navTimer = setTimeout(() => {
+      console.log("Navigating to board...");
+      router.push(`/board/${slug}`);
+    }, 1400);
+
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(entranceTimer);
+      clearTimeout(navTimer);
+    };
+  };
+
+  const handleJoinFromHistory = (slug: string) => {
+    if (isTransitioning) return; // Prevent multiple clicks
+
+    // Start transition sequence
+    console.log("Starting transition from history...");
+    setIsTransitioning(true);
+    setTransitionPhase("dimming");
+
+    // After components fade and lights dim, start entrance animation
+    const entranceTimer = setTimeout(() => {
+      console.log("Entrance phase...");
+      setTransitionPhase("entrance");
+    }, 700);
+
+    // Navigate to board after full animation completes
+    const navTimer = setTimeout(() => {
+      console.log("Navigating to board...");
+      router.push(`/board/${slug}`);
+    }, 1400);
+
+    // Cleanup on unmount
+    return () => {
+      clearTimeout(entranceTimer);
+      clearTimeout(navTimer);
+    };
   };
 
   if (isUserLoading || isHistoryLoading || !user) {
@@ -59,8 +115,13 @@ function HomePageContent() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-4 hero-background overflow-hidden">
-      <div className="text-center space-y-3 mb-6">
-        <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+      <div
+        className={`text-center space-y-3 mb-6 ${
+          isTransitioning ? "animate-holo-fade" : "animate-fade-in"
+        }`}
+        style={{ animationDelay: isTransitioning ? "0s" : "0.1s" }}
+      >
+        <h1 className="text-4xl md:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-cyan-300 to-purple-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)] glitch-text">
           Holoboard
         </h1>
         <p className="text-base md:text-lg text-cyan-100/70 max-w-2xl">
@@ -69,7 +130,12 @@ function HomePageContent() {
         </p>
       </div>
 
-      <div className="flex flex-col lg:flex-row lg:items-stretch justify-center gap-6 w-full max-w-5xl">
+      <div
+        className={`flex flex-col lg:flex-row lg:items-stretch justify-center gap-6 w-full max-w-5xl ${
+          isTransitioning ? "animate-holo-fade" : "animate-fade-in"
+        }`}
+        style={{ animationDelay: isTransitioning ? "0s" : "0.3s" }}
+      >
         <form
           onSubmit={handleJoinRoom}
           className="flex flex-col items-center gap-4 p-6 rounded-2xl
@@ -145,9 +211,11 @@ function HomePageContent() {
           <button
             type="submit"
             className="w-full mt-1 px-6 py-3 bg-gradient-to-r from-cyan-400 to-cyan-500 text-black font-bold text-base rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] hover:from-cyan-300 hover:to-cyan-400 hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
-            disabled={!roomName.trim() || !user.username.trim()}
+            disabled={
+              !roomName.trim() || !user.username.trim() || isTransitioning
+            }
           >
-            Create or Join
+            {isTransitioning ? "Connecting..." : "Create or Join"}
           </button>
         </form>
         <RoomHistoryCard
@@ -155,8 +223,44 @@ function HomePageContent() {
           togglePin={togglePin}
           isLoading={isHistoryLoading}
           clearHistory={clearHistory}
+          onJoinRoom={handleJoinFromHistory}
         />
       </div>
+
+      {/* Transition Overlay */}
+      {isTransitioning && (
+        <div className="fixed inset-0 z-[9999] pointer-events-none">
+          {/* Sci-fi entrance animation - appears after dimming */}
+          {transitionPhase === "entrance" && (
+            <div className="absolute inset-0 z-30 animate-board-entrance">
+              {/* Radial gradient */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)]" />
+
+              {/* Expanding circles/rings */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="w-32 h-32 rounded-full border-2 border-cyan-400/60 animate-expand-ring-1" />
+              </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="w-32 h-32 rounded-full border-2 border-cyan-400/40 animate-expand-ring-2" />
+              </div>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                <div className="w-32 h-32 rounded-full border-2 border-cyan-400/20 animate-expand-ring-3" />
+              </div>
+
+              {/* Enhanced scanning lines */}
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent animate-scan-line" />
+              <div
+                className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-purple-400 to-transparent animate-scan-line"
+                style={{ animationDelay: "0.1s" }}
+              />
+              <div
+                className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent animate-scan-line"
+                style={{ animationDelay: "0.2s" }}
+              />
+            </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }

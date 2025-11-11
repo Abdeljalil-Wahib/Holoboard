@@ -236,3 +236,220 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* Dimming lights effect - fade to black */
+@keyframes dimLights {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.animate-dim-lights {
+  animation: dimLights 1s ease-in forwards;
+  opacity: 0;
+}
+
+/* Holographic fade out for components */
+@keyframes holoFade {
+  0% {
+    opacity: 1;
+    filter: brightness(1) blur(0px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: brightness(1.5) blur(2px);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(0) blur(4px);
+  }
+}
+
+.animate-holo-fade {
+  animation: holoFade 0.7s ease-out forwards;
+}
+
+/* Sci-fi board entrance - fade out overlay */
+@keyframes boardEntrance {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-board-entrance {
+  animation: boardEntrance 0.7s ease-out forwards;
+}
+
+/* Expanding rings animation - simple version */
+@keyframes expandRing1 {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(20);
+    opacity: 0;
+  }
+}
+
+@keyframes expandRing2 {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(25);
+    opacity: 0;
+  }
+}
+
+@keyframes expandRing3 {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(30);
+    opacity: 0;
+  }
+}
+
+.animate-expand-ring-1 {
+  animation: expandRing1 0.7s ease-out forwards;
+}
+
+.animate-expand-ring-2 {
+  animation: expandRing2 0.7s ease-out 0.06s forwards;
+}
+
+.animate-expand-ring-3 {
+  animation: expandRing3 0.7s ease-out 0.12s forwards;
+}
+
+/* Scanning line effect - enhanced with pulse */
+@keyframes scanLine {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.8);
+  }
+  10% {
+    opacity: 1;
+    box-shadow: 0 0 40px rgba(6, 182, 212, 1), 0 0 80px rgba(6, 182, 212, 0.6);
+  }
+  50% {
+    opacity: 0.8;
+    box-shadow: 0 0 30px rgba(6, 182, 212, 0.9), 0 0 60px rgba(6, 182, 212, 0.5);
+  }
+  90% {
+    opacity: 0.6;
+    box-shadow: 0 0 20px rgba(6, 182, 212, 0.7), 0 0 40px rgba(6, 182, 212, 0.4);
+  }
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+  }
+}
+
+.animate-scan-line {
+  animation: scanLine 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Holographic fade in for board page */
+@keyframes holoFadeIn {
+  0% {
+    opacity: 0;
+    filter: brightness(0) blur(8px);
+  }
+  50% {
+    opacity: 0.5;
+    filter: brightness(1.3) blur(4px);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1) blur(0px);
+  }
+}
+
+.animate-holo-fade-in {
+  animation: holoFadeIn 0.5s ease-out forwards;
+  opacity: 0;
+}
+
+/* Retro scanline text effect */
+.scanline-text {
+  position: relative;
+  display: inline-block;
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15) 0px,
+    transparent 1px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 3px
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+@keyframes scanlineMove {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* Subtle glitch effect for title - periodic distortion only */
+@keyframes glitchEffect {
+  0%,
+  90% {
+    transform: translate(0);
+    opacity: 1;
+  }
+  91% {
+    transform: translate(-2px, 1px);
+    opacity: 0.8;
+  }
+  92% {
+    transform: translate(2px, -1px);
+    opacity: 0.8;
+  }
+  93% {
+    transform: translate(-1px, 2px);
+    opacity: 0.9;
+  }
+  94%,
+  100% {
+    transform: translate(0);
+    opacity: 1;
+  }
+}
+
+.glitch-text {
+  animation: glitchEffect 5s ease-in-out infinite;
+  position: relative;
+}

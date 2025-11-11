@@ -10,6 +10,7 @@ interface RoomHistoryCardProps {
   togglePin: (slug: string) => void;
   isLoading: boolean;
   clearHistory: () => void;
+  onJoinRoom?: (slug: string) => void;
   className?: string;
 }
 
@@ -18,13 +19,18 @@ export default function RoomHistoryCard({
   togglePin,
   isLoading,
   clearHistory,
+  onJoinRoom,
   className = "",
 }: RoomHistoryCardProps) {
   const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
 
   const handleJoin = (slug: string) => {
-    router.push(`/board/${slug}`);
+    if (onJoinRoom) {
+      onJoinRoom(slug);
+    } else {
+      router.push(`/board/${slug}`);
+    }
   };
 
   const handleClearClick = () => {

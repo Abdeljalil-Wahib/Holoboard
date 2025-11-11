@@ -1788,7 +1788,7 @@ export default function BoardPage({
     <>
       <ExternalFontLoader />
       <TextareaStyles />
-      <div className="flex flex-col h-screen w-screen bg-[#000510] overflow-hidden relative">
+      <div className="flex flex-col h-screen w-screen bg-[#000510] overflow-hidden relative animate-holo-fade-in">
         {/* Holographic background effects */}
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.03),transparent_50%)] pointer-events-none" />
