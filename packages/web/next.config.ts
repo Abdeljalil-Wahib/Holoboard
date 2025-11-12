@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  // Updated CSP for production Socket.IO connection
   eslint: {
     // Only fail on errors, not warnings during production builds
     ignoreDuringBuilds: false,
