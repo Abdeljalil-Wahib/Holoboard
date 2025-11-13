@@ -27,6 +27,8 @@ const EditableText: React.FC<EditableTextProps> = ({
 }) => {
   const textRef = useRef<Konva.Text>(null);
   const isDraggable = isSelected && activeTool === TOOLS.SELECT;
+  const lastTapTimeRef = useRef<number>(0);
+  const tapTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (textRef.current) {
@@ -54,6 +56,39 @@ const EditableText: React.FC<EditableTextProps> = ({
     }
   };
 
+  const handleTap = (e: any) => {
+    // Handle double-tap for mobile text editing
+    const currentTime = Date.now();
+    const timeSinceLastTap = currentTime - lastTapTimeRef.current;
+
+    if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+      // Double tap detected - trigger the onDblClick handler from rest props
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+        tapTimeoutRef.current = null;
+      }
+      if (rest.onDblClick) {
+        rest.onDblClick(e);
+      }
+      lastTapTimeRef.current = 0;
+    } else {
+      // First tap
+      lastTapTimeRef.current = currentTime;
+      tapTimeoutRef.current = window.setTimeout(() => {
+        lastTapTimeRef.current = 0;
+      }, 300) as unknown as number;
+    }
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tapTimeoutRef.current) {
+        clearTimeout(tapTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (isEditing) return null;
 
   return (
@@ -71,6 +106,7 @@ const EditableText: React.FC<EditableTextProps> = ({
       rotation={shape.rotation}
       draggable={isDraggable}
       onDragEnd={handleDragEnd}
+      onTap={handleTap}
       width={shape.width}
       height={shape.height}
       wrap="char"

@@ -169,6 +169,11 @@ export default function BoardPage({
     setIsSidebarVisible((prev) => !prev);
   }, []);
 
+  // Touch handling for swipeable bottom sheet
+  const touchStartY = useRef<number>(0);
+  const touchCurrentY = useRef<number>(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+
   const [shadowBlur, setShadowBlur] = useState(8);
   const [eraserRadius, setEraserRadius] = useState(20);
   const [eraserPosition, setEraserPosition] = useState<Point | null>(null);
@@ -176,6 +181,10 @@ export default function BoardPage({
   const [remoteCursors, setRemoteCursors] = useState<
     Record<string, { x: number; y: number; user: UserProfile }>
   >({});
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const hasAttemptedPassword = useRef(false);
 
   const historyRef = useRef(history);
   const historyPointerRef = useRef(historyPointer);
@@ -643,9 +652,14 @@ export default function BoardPage({
     newSocket.on("connect", () => {
       console.log("✅ Connected to Socket.IO server with ID:", newSocket.id);
       console.log("Joining room:", roomId);
+
+      // Get password from sessionStorage if it exists
+      const password = sessionStorage.getItem(`room_password_${roomId}`);
+
       newSocket.emit("join-room", {
         roomId: roomId,
         userProfile: uniqueUserProfile,
+        password: password || undefined,
       });
     });
 
@@ -677,6 +691,31 @@ export default function BoardPage({
       } else if (historyRef.current.length === 0) {
         handleNewState([]);
       }
+    });
+
+    newSocket.on("join-error", (error: { message: string }) => {
+      if (error.message === "incorrect-password") {
+        // Clear the incorrect password from sessionStorage
+        sessionStorage.removeItem(`room_password_${roomId}`);
+
+        // Show password modal with error only if user has attempted before
+        if (hasAttemptedPassword.current) {
+          setPasswordError("Incorrect password. Please try again.");
+        }
+        setPasswordInput("");
+        setShowPasswordModal(true);
+      } else if (error.message === "room-full") {
+        setIsRoomFull(true);
+      }
+    });
+
+    newSocket.on("join-success", () => {
+      console.log("✅ Successfully joined room:", roomId);
+      // Close password modal on successful join
+      setShowPasswordModal(false);
+      setPasswordInput("");
+      setPasswordError("");
+      hasAttemptedPassword.current = false;
     });
 
     newSocket.on("room-participants", (allParticipants: Participant[]) => {
@@ -1735,6 +1774,118 @@ export default function BoardPage({
     }));
   };
 
+  // Touch event handlers for mobile
+  const lastTouchDistance = useRef<number | null>(null);
+  const lastTouchCenter = useRef<{ x: number; y: number } | null>(null);
+  const lastTapTime = useRef<number>(0);
+  const tapTimeoutRef = useRef<number | null>(null);
+
+  const handleTouchStart = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const touches = e.evt.touches;
+
+      // Handle pinch-to-zoom with two fingers
+      if (touches.length === 2) {
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const dx = touch2.clientX - touch1.clientX;
+        const dy = touch2.clientY - touch1.clientY;
+        lastTouchDistance.current = Math.sqrt(dx * dx + dy * dy);
+        lastTouchCenter.current = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2,
+        };
+      }
+
+      // Handle double-tap for text tool
+      if (touches.length === 1 && activeTool === TOOLS.TEXT) {
+        const currentTime = Date.now();
+        const timeSinceLastTap = currentTime - lastTapTime.current;
+
+        if (timeSinceLastTap < 300 && timeSinceLastTap > 0) {
+          // Double tap detected
+          if (tapTimeoutRef.current) {
+            clearTimeout(tapTimeoutRef.current);
+            tapTimeoutRef.current = null;
+          }
+          handleStageDblClick(e as any);
+          lastTapTime.current = 0;
+        } else {
+          // First tap
+          lastTapTime.current = currentTime;
+          tapTimeoutRef.current = window.setTimeout(() => {
+            lastTapTime.current = 0;
+          }, 300) as unknown as number;
+        }
+      }
+    },
+    [activeTool, handleStageDblClick]
+  );
+
+  const handleTouchMove = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const touches = e.evt.touches;
+
+      // Handle pinch-to-zoom
+      if (
+        touches.length === 2 &&
+        lastTouchDistance.current !== null &&
+        lastTouchCenter.current
+      ) {
+        const touch1 = touches[0];
+        const touch2 = touches[1];
+        const dx = touch2.clientX - touch1.clientX;
+        const dy = touch2.clientY - touch1.clientY;
+        const currentDistance = Math.sqrt(dx * dx + dy * dy);
+        const currentCenter = {
+          x: (touch1.clientX + touch2.clientX) / 2,
+          y: (touch1.clientY + touch2.clientY) / 2,
+        };
+
+        const stageInstance = stageRef.current?.getStage();
+        if (!stageInstance) return;
+
+        const minScale = 0.1;
+        const maxScale = 2;
+        const oldScale = stage.scale;
+
+        // Calculate scale change based on distance change
+        const scaleChange = currentDistance / lastTouchDistance.current;
+        let newScale = oldScale * scaleChange;
+        newScale = Math.max(minScale, Math.min(newScale, maxScale));
+
+        // Calculate point to zoom towards (center of pinch)
+        const mousePointTo = {
+          x: (lastTouchCenter.current.x - stage.x) / oldScale,
+          y: (lastTouchCenter.current.y - stage.y) / oldScale,
+        };
+
+        setStage({
+          scale: newScale,
+          x: currentCenter.x - mousePointTo.x * newScale,
+          y: currentCenter.y - mousePointTo.y * newScale,
+        });
+
+        lastTouchDistance.current = currentDistance;
+        lastTouchCenter.current = currentCenter;
+      }
+    },
+    [stage]
+  );
+
+  const handleTouchEnd = useCallback(
+    (e: Konva.KonvaEventObject<TouchEvent>) => {
+      const touches = e.evt.touches;
+
+      // Reset pinch-to-zoom tracking when fingers are lifted
+      if (touches.length < 2) {
+        lastTouchDistance.current = null;
+        lastTouchCenter.current = null;
+      }
+    },
+    []
+  );
+
   const handleClear = () => {
     // Clear local state
     setLines([]);
@@ -1754,6 +1905,85 @@ export default function BoardPage({
 
   const handleGoHome = useCallback(() => {
     router.push("/");
+  }, [router]);
+
+  // Swipeable bottom sheet handlers
+  const handleSheetTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile) return;
+      touchStartY.current = e.touches[0].clientY;
+      touchCurrentY.current = e.touches[0].clientY;
+      setIsDraggingSheet(true);
+    },
+    [isMobile]
+  );
+
+  const handleSheetTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isMobile || !isDraggingSheet) return;
+      touchCurrentY.current = e.touches[0].clientY;
+    },
+    [isMobile, isDraggingSheet]
+  );
+
+  const handleSheetTouchEnd = useCallback(() => {
+    if (!isMobile || !isDraggingSheet) return;
+    const deltaY = touchCurrentY.current - touchStartY.current;
+
+    // If swiped down more than 100px, close the sheet
+    if (deltaY > 100) {
+      setIsSidebarVisible(false);
+    }
+
+    setIsDraggingSheet(false);
+    touchStartY.current = 0;
+    touchCurrentY.current = 0;
+  }, [isMobile, isDraggingSheet]);
+
+  const handlePasswordSubmit = useCallback(() => {
+    if (!passwordInput.trim()) {
+      setPasswordError("Please enter a password");
+      return;
+    }
+
+    if (!user) return;
+
+    // Mark that user has attempted to join
+    hasAttemptedPassword.current = true;
+
+    // Store password and retry joining
+    sessionStorage.setItem(`room_password_${roomId}`, passwordInput);
+
+    if (socketRef.current) {
+      const uniqueUsername = `${user.username}#${sessionId}`;
+      const isValidAvatar =
+        user.avatar &&
+        (AVATAR_PRESETS as readonly string[]).includes(user.avatar);
+      const userAvatar = isValidAvatar ? user.avatar : ("robot" as const);
+
+      const uniqueUserProfile: UserProfile = {
+        id: (user as UserProfile).id || nanoid(),
+        username: uniqueUsername,
+        avatar: userAvatar,
+      };
+
+      socketRef.current.emit("join-room", {
+        roomId: roomId,
+        userProfile: uniqueUserProfile,
+        password: passwordInput,
+      });
+    }
+
+    // Don't close modal here - let join-success or join-error handle it
+    // This prevents re-render and keeps modal open if password is wrong
+  }, [passwordInput, roomId, user, sessionId]);
+
+  const handlePasswordCancel = useCallback(() => {
+    setShowPasswordModal(false);
+    setPasswordInput("");
+    setPasswordError("");
+    hasAttemptedPassword.current = false;
+    router.replace("/");
   }, [router]);
 
   if (isUserLoading || !shapeCreators) {
@@ -1932,117 +2162,148 @@ export default function BoardPage({
         {/* Mobile Overlay */}
         {isMobile && isSidebarVisible && (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-10"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
             onClick={toggleSidebar}
           />
         )}
 
         {/* Main Content (Container for Sidebar + Canvas) */}
         <div className="flex flex-row h-full overflow-hidden relative">
-          {/* Left Toolbar - COLLAPSIBLE */}
+          {/* Left Toolbar - Desktop or Bottom Sheet - Mobile */}
           <div
             className={`
-              ${isMobile ? "fixed" : "absolute"} z-20 
-              flex-shrink-0 ${isMobile ? "w-64" : "w-56"} h-full 
-              bg-gradient-to-b from-black/70 via-black/60 to-black/70 backdrop-blur-2xl border-r border-cyan-400/40 
+              ${isMobile ? "fixed bottom-0 left-0 right-0" : "absolute"} z-50 
+              ${isMobile ? "w-full max-h-[60vh]" : "w-56 h-full flex-shrink-0"}
+              bg-gradient-to-b from-black/90 via-black/85 to-black/90 backdrop-blur-2xl
+              ${
+                isMobile ? "border-t rounded-t-3xl" : "border-r"
+              } border-cyan-400/40 
               transition-all duration-300 ease-in-out
-              shadow-[4px_0_30px_rgba(6,182,212,0.2)]
+              shadow-[0_-4px_30px_rgba(6,182,212,0.3)]
               before:absolute before:inset-0 before:bg-gradient-to-b before:from-cyan-500/5 before:via-purple-500/5 before:to-cyan-500/5 before:pointer-events-none
-              ${isSidebarVisible ? "translate-x-0" : "-translate-x-full"}
+              ${
+                isMobile
+                  ? isSidebarVisible
+                    ? "translate-y-0"
+                    : "translate-y-full"
+                  : isSidebarVisible
+                  ? "translate-x-0"
+                  : "-translate-x-full"
+              }
             `}
+            onTouchStart={isMobile ? handleSheetTouchStart : undefined}
+            onTouchMove={isMobile ? handleSheetTouchMove : undefined}
+            onTouchEnd={isMobile ? handleSheetTouchEnd : undefined}
           >
-            <div className="p-4 flex flex-col items-center h-full relative z-10 gap-4">
-              {/* Close button for mobile */}
+            <div
+              className={`${
+                isMobile ? "p-4 pb-8" : "p-4"
+              } flex flex-col items-center h-full relative z-10 gap-4`}
+            >
+              {/* Drag Handle for mobile */}
               {isMobile && (
-                <button
-                  onClick={toggleSidebar}
-                  className="absolute top-4 right-4 p-2 bg-cyan-500/20 hover:bg-cyan-500/30 rounded-md border border-cyan-400/40 transition-all"
-                  aria-label="Close menu"
-                >
-                  <svg
-                    className="w-5 h-5 text-cyan-300"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+                <div className="w-full flex justify-center mb-2 cursor-grab active:cursor-grabbing">
+                  <div className="w-12 h-1.5 rounded-full bg-cyan-400/40" />
+                </div>
               )}
 
-              <p className="font-semibold text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
-                Manual
-              </p>
+              {/* Header row with Manual button */}
+              <div className="w-full flex items-center justify-between">
+                <p className="font-semibold text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+                  {isMobile ? "Controls" : "Manual"}
+                </p>
+                <button
+                  title={showManual ? "Close user manual" : "Open user manual"}
+                  onClick={() => setShowManual((s) => !s)}
+                  aria-pressed={showManual}
+                  aria-label={
+                    showManual ? "Close user manual" : "Open user manual"
+                  }
+                  className={`${
+                    isMobile ? "w-8 h-8" : "w-10 h-10"
+                  } rounded-md flex items-center justify-center cursor-pointer transition-all border backdrop-blur-sm ${
+                    showManual
+                      ? "bg-gradient-to-br from-cyan-500 to-cyan-600 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.6)]"
+                      : "bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
+                  }`}
+                >
+                  <FaBook
+                    size={isMobile ? 14 : 18}
+                    aria-hidden
+                    color={showManual ? "#000000" : "#67e8f9"}
+                  />
+                </button>
+              </div>
 
-              <button
-                title={showManual ? "Close user manual" : "Open user manual"}
-                onClick={() => setShowManual((s) => !s)}
-                aria-pressed={showManual}
-                aria-label={
-                  showManual ? "Close user manual" : "Open user manual"
-                }
-                className={`w-10 h-10 rounded-md flex items-center justify-center cursor-pointer transition-all border backdrop-blur-sm ${
-                  showManual
-                    ? "bg-gradient-to-br from-cyan-500 to-cyan-600 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.6)]"
-                    : "bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
-                }`}
+              <div
+                className={`flex-1 overflow-y-auto min-h-0 w-full ${
+                  isMobile ? "max-h-[45vh]" : "h-full"
+                } space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
               >
-                <FaBook
-                  size={18}
-                  aria-hidden
-                  color={showManual ? "#000000" : "#67e8f9"}
-                />
-              </button>
-
-              <div className="flex-1 overflow-y-auto min-h-0 w-full h-full space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {showManual ? (
-                  <div className="text-center w-full space-y-5 p-4 bg-gradient-to-br from-cyan-500/10 to-purple-500/10 h-full rounded-md text-sm text-cyan-100/80 border border-cyan-400/20 backdrop-blur-sm shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]">
-                    {/* 1. Title */}
-                    <div className="flex items-center justify-center"></div>
+                  <div
+                    className={`text-center w-full space-y-4 ${
+                      isMobile ? "p-3" : "p-4"
+                    } bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-md text-sm text-cyan-100/80 border border-cyan-400/20 backdrop-blur-sm shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]`}
+                  >
+                    {/* Basic Controls - Only show on desktop or when explicitly opened */}
+                    {!isMobile && (
+                      <>
+                        <div className="space-y-2.5 text-left">
+                          <p className="text-xs font-semibold">
+                            Getting Started
+                          </p>
+                          <p className="text-xs">
+                            <strong className="font-semibold">
+                              Hold Right-Click
+                            </strong>{" "}
+                            anywhere on the canvas to open the tool selector.
+                            Hover and release to select, or use Numpad
+                          </p>
+                        </div>
 
-                    {/* 3. Basic Controls */}
-                    <div className="space-y-2.5 text-left">
-                      <p className="text-xs font-semibold">Getting Started</p>
-                      <p className="text-xs">
-                        <strong className="font-semibold">
-                          Hold Right-Click
-                        </strong>{" "}
-                        anywhere on the canvas to open the tool selector. Hover
-                        and release to select, or use Numpad
-                      </p>
-                    </div>
-
-                    {/* 4. Keyboard Shortcuts */}
-                    <div className="space-y-2.5 text-left">
-                      <p className="text-xs font-semibold">
-                        Keyboard Shortcuts
-                      </p>
-                      <ul className="text-xs list-disc list-inside space-y-1">
-                        <li>P - Pen</li>
-                        <li>S - Select - Delete</li>
-                        <li>C - Circle</li>
-                        <li>R - Rectangle</li>
-                        <li>L - Line</li>
-                        <li>T - Text</li>
-                        <li>Ctrl+Z - Undo</li>
-                        <li>Ctrl+Y - Redo</li>
-                        <li>Alt - Toggle Left Bar</li>
-                      </ul>
-                    </div>
+                        {/* Keyboard Shortcuts */}
+                        <div className="space-y-2.5 text-left">
+                          <p className="text-xs font-semibold">
+                            Keyboard Shortcuts
+                          </p>
+                          <ul className="text-xs list-disc list-inside space-y-1">
+                            <li>P - Pen</li>
+                            <li>S - Select - Delete</li>
+                            <li>C - Circle</li>
+                            <li>R - Rectangle</li>
+                            <li>L - Line</li>
+                            <li>T - Text</li>
+                            <li>Ctrl+Z - Undo</li>
+                            <li>Ctrl+Y - Redo</li>
+                            <li>Alt - Toggle Left Bar</li>
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                    {isMobile && (
+                      <div className="text-xs text-cyan-100/70">
+                        Use the mobile toolbar at the bottom to select tools.
+                        Double-tap to create text or edit existing text.
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <>
                     {/* Zoom Controls */}
-                    <div className="text-center w-full space-y-3">
-                      <p className="text-sm text-cyan-100/90 font-semibold mb-2">
+                    <div
+                      className={`text-center w-full ${
+                        isMobile ? "space-y-2" : "space-y-3"
+                      }`}
+                    >
+                      <p
+                        className={`${
+                          isMobile ? "text-xs" : "text-sm"
+                        } text-cyan-100/90 font-semibold mb-1`}
+                      >
                         Zoom Controls
                       </p>
-                      <div className="text-xs text-cyan-100/70 mb-3">
+                      <div className="text-xs text-cyan-100/70 mb-2">
                         Zoom: {Math.round(stage.scale * 100)}%
                       </div>
                       <input
@@ -2061,18 +2322,28 @@ export default function BoardPage({
                       />
                       <button
                         onClick={() => setStage({ scale: 1, x: 0, y: 0 })}
-                        className="w-full py-1.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-xs font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] mt-3"
+                        className={`w-full ${
+                          isMobile ? "py-1" : "py-1.5"
+                        } bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-xs font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] mt-2`}
                       >
                         Reset View
                       </button>
                     </div>
 
                     {/* --- Glow Intensity Slider --- */}
-                    <div className="text-center w-full space-y-3">
-                      <p className="text-sm text-cyan-100/90 font-semibold mb-2">
+                    <div
+                      className={`text-center w-full ${
+                        isMobile ? "space-y-2" : "space-y-3"
+                      }`}
+                    >
+                      <p
+                        className={`${
+                          isMobile ? "text-xs" : "text-sm"
+                        } text-cyan-100/90 font-semibold mb-1`}
+                      >
                         Global Glow
                       </p>
-                      <div className="text-xs text-cyan-100/70 mb-3">
+                      <div className="text-xs text-cyan-100/70 mb-2">
                         Intensity: {shadowBlur}
                       </div>
                       <input
@@ -2087,15 +2358,25 @@ export default function BoardPage({
                     </div>
                     {/* --- END --- */}
 
-                    <div className="border-t border-cyan-300/20 w-full" />
+                    {!isMobile && (
+                      <div className="border-t border-cyan-300/20 w-full" />
+                    )}
 
                     {/* Dynamic Options based on activeTool (Non-Text Tools) */}
                     {(activeTool === TOOLS.PEN ||
                       activeTool === TOOLS.RECTANGLE ||
                       activeTool === TOOLS.CIRCLE ||
                       activeTool === TOOLS.LINE) && (
-                      <div className="text-center w-full space-y-4">
-                        <p className="text-sm text-cyan-100/90 font-semibold">
+                      <div
+                        className={`text-center w-full ${
+                          isMobile ? "space-y-2" : "space-y-4"
+                        }`}
+                      >
+                        <p
+                          className={`${
+                            isMobile ? "text-xs" : "text-sm"
+                          } text-cyan-100/90 font-semibold`}
+                        >
                           {activeTool} Options
                         </p>
                         <div className="w-full flex justify-center">
@@ -2109,7 +2390,9 @@ export default function BoardPage({
                               );
                             }}
                             onPointerUp={() => handleNewState(lines)}
-                            className="max-w-full"
+                            className={
+                              isMobile ? "!w-[140px] !h-[140px]" : "max-w-full"
+                            }
                           />
                         </div>
                         <div
@@ -2211,11 +2494,19 @@ export default function BoardPage({
 
                     {/* Eraser Options */}
                     {activeTool === TOOLS.ERASER && (
-                      <div className="text-center w-full space-y-3">
-                        <p className="text-sm text-cyan-100/90 font-semibold mb-2">
+                      <div
+                        className={`text-center w-full ${
+                          isMobile ? "space-y-2" : "space-y-3"
+                        }`}
+                      >
+                        <p
+                          className={`${
+                            isMobile ? "text-xs" : "text-sm"
+                          } text-cyan-100/90 font-semibold mb-1`}
+                        >
                           Eraser Options
                         </p>
-                        <div className="text-xs text-cyan-100/70 mb-3">
+                        <div className="text-xs text-cyan-100/70 mb-2">
                           Radius: {eraserRadius}px
                         </div>
                         <input
@@ -2229,13 +2520,29 @@ export default function BoardPage({
                           }
                           className="holo-slider w-full"
                         />
+                        <button
+                          onClick={handleClear}
+                          className={`w-full ${
+                            isMobile ? "py-1" : "py-1.5"
+                          } bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-sm font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]`}
+                        >
+                          Clear Board
+                        </button>
                       </div>
                     )}
 
                     {/* Options for Text Tool */}
                     {activeTool === TOOLS.TEXT && (
-                      <div className="text-center w-full space-y-3.5">
-                        <p className="text-sm text-cyan-100/90 font-semibold">
+                      <div
+                        className={`text-center w-full ${
+                          isMobile ? "space-y-2" : "space-y-3.5"
+                        }`}
+                      >
+                        <p
+                          className={`${
+                            isMobile ? "text-xs" : "text-sm"
+                          } text-cyan-100/90 font-semibold`}
+                        >
                           Text Options
                         </p>
                         <div className="w-full flex justify-center">
@@ -2250,7 +2557,9 @@ export default function BoardPage({
                                 handleNewState(lines);
                               }
                             }}
-                            className="max-w-full"
+                            className={
+                              isMobile ? "!w-[140px] !h-[140px]" : "max-w-full"
+                            }
                           />
                         </div>
                         <div
@@ -2368,22 +2677,10 @@ export default function BoardPage({
                         {/* ----------------------------- */}
 
                         <p className="text-xs text-cyan-100/50 mt-2">
-                          Double-click on the canvas to place new text.
+                          {isMobile
+                            ? "Double-tap to place/edit text"
+                            : "Double-click on the canvas to place new text."}
                         </p>
-                      </div>
-                    )}
-
-                    {activeTool === TOOLS.ERASER && (
-                      <div className="text-center w-full space-y-4">
-                        <p className="text-sm text-foreground/80 font-semibold">
-                          Eraser Options
-                        </p>
-                        <button
-                          onClick={handleClear}
-                          className="w-full py-1.5 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-sm font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]"
-                        >
-                          Clear Board
-                        </button>
                       </div>
                     )}
 
@@ -2450,6 +2747,9 @@ export default function BoardPage({
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 selectedShapeIds={selectedShapeIds}
                 onSelectShape={handleSelectShape}
                 onTransformEnd={handleTransformEnd}
@@ -2495,6 +2795,74 @@ export default function BoardPage({
         {/* Mobile Toolbar */}
         {isMobile && (
           <MobileToolbar activeTool={activeTool} onToolSelect={setActiveTool} />
+        )}
+
+        {/* Password Modal */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+            <div className="relative w-full max-w-md mx-4 p-6 rounded-2xl bg-gradient-to-br from-black/95 via-cyan-950/30 to-black/95 border-2 border-cyan-400/40 shadow-[0_0_60px_rgba(6,182,212,0.4)] animate-scale-in">
+              {/* Holographic effects */}
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 rounded-2xl pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.1),transparent_70%)] rounded-2xl pointer-events-none" />
+
+              <div className="relative z-10 space-y-4">
+                <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 text-center">
+                  Protected Room
+                </h2>
+
+                <p className="text-cyan-100/70 text-center text-sm">
+                  This room is password protected. Please enter the password to
+                  join.
+                </p>
+
+                {passwordError && (
+                  <div className="p-3 rounded-lg bg-red-500/20 border border-red-400/40 text-red-300 text-sm text-center animate-shake">
+                    {passwordError}
+                  </div>
+                )}
+
+                <input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => {
+                    setPasswordInput(e.target.value);
+                    if (passwordError) {
+                      setPasswordError("");
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") {
+                      handlePasswordSubmit();
+                    } else if (e.key === "Escape") {
+                      handlePasswordCancel();
+                    }
+                  }}
+                  placeholder="Enter password..."
+                  autoFocus
+                  autoComplete="off"
+                  data-form-type="other"
+                  data-lpignore="true"
+                  className="w-full px-4 py-3 bg-black/60 border-2 border-cyan-400/30 rounded-lg text-base text-cyan-100 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400/50 transition-all"
+                />
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handlePasswordCancel}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-300 font-semibold text-base rounded-lg border border-red-400/30 hover:from-red-500/30 hover:to-red-600/30 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handlePasswordSubmit}
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-cyan-400 to-cyan-500 text-black font-bold text-base rounded-lg shadow-[0_0_25px_rgba(6,182,212,0.5)] hover:from-cyan-300 hover:to-cyan-400 hover:shadow-[0_0_35px_rgba(6,182,212,0.7)] transition-all"
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </>

@@ -31,22 +31,67 @@ interface Participant {
   profile: UserProfile;
 }
 
+interface RoomMetadata {
+  createdBy: string;
+  createdAt: number;
+  password?: string; // hashed password
+  isProtected: boolean;
+}
+
 const roomStates: Record<string, Shape[]> = {};
 const roomParticipants: Record<string, Participant[]> = {};
+const roomMetadata: Record<string, RoomMetadata> = {};
 
 interface SocketWithRoom extends Socket {
   roomId?: string;
 }
 
 io.on("connection", (socket: SocketWithRoom) => {
+  // Check if room requires password
+  socket.on("check-room", (data: { roomId: string }) => {
+    const { roomId } = data;
+    const metadata = roomMetadata[roomId];
+
+    socket.emit("room-info", {
+      exists: !!metadata,
+      isProtected: metadata?.isProtected || false,
+    });
+  });
+
   socket.on(
     "join-room",
-    (data: { roomId: string; userProfile: UserProfile }) => {
-      const { roomId, userProfile } = data;
+    (data: { roomId: string; userProfile: UserProfile; password?: string }) => {
+      const { roomId, userProfile, password } = data;
 
       if (!roomId || !userProfile || !userProfile.username) {
         console.error("Invalid join-room data received:", data);
+        socket.emit("join-error", { message: "Invalid room data" });
         return;
+      }
+
+      // Check if room exists and needs password
+      const metadata = roomMetadata[roomId];
+
+      if (metadata) {
+        // Room exists - check password if protected
+        console.log(
+          `Room ${roomId} check - isProtected: ${metadata.isProtected}, stored: "${metadata.password}", provided: "${password}"`
+        );
+        if (metadata.isProtected && metadata.password !== password) {
+          console.log(`Password mismatch for room ${roomId}`);
+          socket.emit("join-error", { message: "incorrect-password" });
+          return;
+        }
+        console.log(`Password correct or room not protected for ${roomId}`);
+      } else {
+        // Room doesn't exist - create it
+        roomMetadata[roomId] = {
+          createdBy: userProfile.id,
+          createdAt: Date.now(),
+          password: password,
+          isProtected: !!password,
+        };
+        console.log(`Room ${roomId} created by ${userProfile.username}`);
       }
 
       const MAX_PARTICIPANTS = 5;
@@ -75,6 +120,7 @@ io.on("connection", (socket: SocketWithRoom) => {
       roomParticipants[roomId].push(newParticipant);
 
       socket.emit("canvas-state", roomStates[roomId]);
+      socket.emit("join-success");
       io.to(roomId).emit("room-participants", roomParticipants[roomId]);
     }
   );
@@ -184,6 +230,8 @@ io.on("connection", (socket: SocketWithRoom) => {
 
       if (roomParticipants[roomId].length === 0) {
         delete roomParticipants[roomId];
+        // Optionally delete room after some time of inactivity
+        // For now, we keep the room data for potential rejoin
       }
     }
   });

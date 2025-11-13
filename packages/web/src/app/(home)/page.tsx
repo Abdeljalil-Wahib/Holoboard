@@ -14,6 +14,8 @@ function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [roomName, setRoomName] = useState("");
+  const [roomPassword, setRoomPassword] = useState("");
+  const [usePassword, setUsePassword] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionPhase, setTransitionPhase] = useState<
     "idle" | "dimming" | "entrance"
@@ -51,6 +53,11 @@ function HomePageContent() {
       .replace(/[^a-z0-9-]/g, "");
 
     addRoomToHistory({ name: roomName, slug });
+
+    // Store password in sessionStorage if provided
+    if (usePassword && roomPassword.trim()) {
+      sessionStorage.setItem(`room_password_${slug}`, roomPassword);
+    }
 
     // Start transition sequence
     console.log("Starting transition...");
@@ -206,6 +213,28 @@ function HomePageContent() {
               placeholder="Enter a Board name..."
               className="w-full px-4 py-2.5 bg-black/40 border border-cyan-400/30 rounded-lg text-base text-cyan-100 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400/50"
             />
+          </div>
+
+          <div className="w-full relative z-10">
+            <label className="flex items-center gap-2 text-sm text-cyan-100/70 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={usePassword}
+                onChange={(e) => setUsePassword(e.target.checked)}
+                className="w-4 h-4 rounded border-cyan-400/30 bg-black/40 text-cyan-400 focus:ring-cyan-400 focus:ring-offset-0"
+              />
+              Password
+            </label>
+
+            {usePassword && (
+              <input
+                type="password"
+                value={roomPassword}
+                onChange={(e) => setRoomPassword(e.target.value)}
+                placeholder="Enter password..."
+                className="w-full mt-2 px-4 py-2.5 bg-black/40 border border-cyan-400/30 rounded-lg text-base text-cyan-100 placeholder:text-cyan-100/30 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400/50"
+              />
+            )}
           </div>
 
           <button

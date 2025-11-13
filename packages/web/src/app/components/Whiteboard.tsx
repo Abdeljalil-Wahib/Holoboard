@@ -46,6 +46,9 @@ interface WhiteboardProps {
   onMouseMove: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onMouseUp: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onWheel: (e: Konva.KonvaEventObject<WheelEvent>) => void;
+  onTouchStart?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onTouchMove?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onTouchEnd?: (e: Konva.KonvaEventObject<TouchEvent>) => void;
   selectedShapeIds: string[];
   onSelectShape: (id: string | null, isMultiSelect?: boolean) => void;
   onTransformEnd: (transformedShape: Shape) => void;
@@ -68,6 +71,9 @@ export default function Whiteboard({
   onMouseMove,
   onMouseUp,
   onWheel,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
   selectedShapeIds,
   onTransformEnd,
   activeTool,
@@ -183,9 +189,18 @@ export default function Whiteboard({
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUp}
-        onTouchStart={(e) => onMouseDown(e as any)}
-        onTouchMove={(e) => onMouseMove(e as any)}
-        onTouchEnd={(e) => onMouseUp(e as any)}
+        onTouchStart={(e) => {
+          onTouchStart?.(e);
+          onMouseDown(e as any);
+        }}
+        onTouchMove={(e) => {
+          onTouchMove?.(e);
+          onMouseMove(e as any);
+        }}
+        onTouchEnd={(e) => {
+          onTouchEnd?.(e);
+          onMouseUp(e as any);
+        }}
         onWheel={onWheel}
         onDblClick={onStageDblClick}
         draggable={false}
