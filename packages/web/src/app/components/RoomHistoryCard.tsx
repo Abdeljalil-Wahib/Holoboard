@@ -105,7 +105,7 @@ export default function RoomHistoryCard({
           <button
             onClick={() => setShowConfirm(true)}
             title="Clear unpinned history"
-            className="p-1.5 text-xs rounded-md text-red-400/70 hover:text-red-400 hover:bg-red-400/10 hover:shadow-[0_0_10px_rgba(239,68,68,0.3)] transition-all flex items-center gap-1.5"
+            className="p-1.5 text-xs rounded-md text-cyan-300/70  hover:bg-cyan-300/10 transition-all flex items-center gap-1.5"
           >
             <FaTrash />
             Clear
@@ -128,7 +128,7 @@ export default function RoomHistoryCard({
             </button>
             <button
               onClick={handleClearClick}
-              className="px-3 py-1.5 bg-gradient-to-r from-red-500/80 to-red-600/80 text-white text-sm rounded-md hover:from-red-400/80 hover:to-red-500/80 hover:shadow-[0_0_15px_rgba(239,68,68,0.5)] transition-all font-semibold"
+              className="px-3 py-1.5 bg-gradient-to-r from-cyan-500/80 to-purple-500/80 text-black text-sm rounded-md hover:from-cyan-400/80 hover:to-purple-400/80 hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all font-semibold"
             >
               Confirm Clear
             </button>
