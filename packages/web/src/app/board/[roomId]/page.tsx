@@ -165,8 +165,19 @@ export default function BoardPage({
 
   const [isMobile, setIsMobile] = useState(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const [isToolbarVisible, setIsToolbarVisible] = useState(true);
+  
   const toggleSidebar = useCallback(() => {
     setIsSidebarVisible((prev) => !prev);
+  }, []);
+  
+  const toggleNavbar = useCallback(() => {
+    setIsNavbarVisible((prev) => !prev);
+  }, []);
+  
+  const toggleToolbar = useCallback(() => {
+    setIsToolbarVisible((prev) => !prev);
   }, []);
 
   // Touch handling for swipeable bottom sheet
@@ -2024,8 +2035,30 @@ export default function BoardPage({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.03),transparent_50%)] pointer-events-none" />
 
         {/* Top Bar - Holographic navbar */}
-        <div className="relative p-2 text-center text-sm text-cyan-100/90 border-b border-cyan-400/40 bg-black/40 backdrop-blur-xl flex justify-between items-center px-4 shadow-[0_0_30px_rgba(6,182,212,0.15)] z-50">
+        <div className={`relative p-2 text-center text-sm text-cyan-100/90 border-b border-cyan-400/40 bg-black/40 backdrop-blur-xl flex justify-between items-center px-4 shadow-[0_0_30px_rgba(6,182,212,0.15)] z-50 transition-transform duration-300 ${
+          isMobile && !isNavbarVisible ? '-translate-y-full' : 'translate-y-0'
+        }`}>
           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10 pointer-events-none" />
+          
+          {/* Navbar toggle indicator (mobile only) */}
+          {isMobile && (
+            <button
+              onClick={toggleNavbar}
+              className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full w-12 h-6 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-md border-x border-b border-cyan-400/40 rounded-b-lg flex items-start justify-center pt-1 shadow-[0_4px_15px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_25px_rgba(6,182,212,0.5)] transition-all z-50"
+              aria-label={isNavbarVisible ? "Hide navbar" : "Show navbar"}
+            >
+              <svg
+                className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${
+                  isNavbarVisible ? 'rotate-180' : 'rotate-0'
+                }`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
 
           <div className="flex-1 text-left flex items-center gap-2 relative z-10">
             <button
@@ -2114,27 +2147,6 @@ export default function BoardPage({
             >
               <FaHome size={16} />
             </button>
-            {isMobile && (
-              <button
-                onClick={toggleSidebar}
-                className="p-2 bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 rounded-md hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 border border-cyan-400/40 transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50"
-                aria-label="Open menu"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
-                </svg>
-              </button>
-            )}
           </div>
         </div>
 
@@ -2730,9 +2742,29 @@ export default function BoardPage({
                 )}
               </button>
             )}
+            
+            {/* Sidebar Toggle Indicator - Mobile only */}
+            {isMobile && (
+              <button
+                onClick={toggleSidebar}
+                className="absolute right-0 top-1/2 -translate-y-1/2 w-6 h-16 bg-gradient-to-l from-black/80 to-transparent backdrop-blur-md border-y border-l border-cyan-400/40 rounded-l-lg flex items-center justify-end pr-1 shadow-[-4px_0_15px_rgba(6,182,212,0.3)] hover:shadow-[-4px_0_25px_rgba(6,182,212,0.5)] transition-all z-40"
+                aria-label={isSidebarVisible ? "Hide sidebar" : "Show sidebar"}
+              >
+                <svg
+                  className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${
+                    isSidebarVisible ? 'rotate-0' : 'rotate-180'
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
 
             <div
-              className={`w-full h-full relative ${isMobile ? "pb-20" : ""}`}
+              className={`w-full h-full relative ${isMobile && isToolbarVisible ? "pb-20" : ""}`}
             >
               {isRoomFull && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-red-400 text-2xl font-bold z-10">
@@ -2770,8 +2802,8 @@ export default function BoardPage({
         {/* HUD / Toast */}
         {toast && (
           <div
-            className={`fixed right-6 z-50 pointer-events-none ${
-              isMobile ? "bottom-24" : "bottom-6"
+            className={`fixed right-6 z-50 pointer-events-none transition-all ${
+              isMobile ? (isToolbarVisible ? "bottom-24" : "bottom-6") : "bottom-6"
             }`}
           >
             <div className="px-4 py-2 rounded-md bg-cyan-300 text-black font-semibold shadow-lg transform-gpu transition-all duration-200 ease-out translate-y-0 opacity-100">
@@ -2794,7 +2826,12 @@ export default function BoardPage({
 
         {/* Mobile Toolbar */}
         {isMobile && (
-          <MobileToolbar activeTool={activeTool} onToolSelect={setActiveTool} />
+          <MobileToolbar 
+            activeTool={activeTool} 
+            onToolSelect={setActiveTool}
+            isVisible={isToolbarVisible}
+            onToggleVisibility={toggleToolbar}
+          />
         )}
 
         {/* Password Modal */}
