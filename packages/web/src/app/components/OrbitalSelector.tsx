@@ -17,6 +17,7 @@ interface OrbitalSelectorProps {
   onToolSelect: (tool: Tool) => void;
   hoveredTool?: Tool | null;
   onHoverTool?: (tool: Tool | null) => void;
+  theme: "holographic" | "light";
 }
 
 const toolOrder: Tool[] = [
@@ -84,6 +85,7 @@ export default function OrbitalSelector({
   onToolSelect,
   hoveredTool: parentHoveredTool,
   onHoverTool,
+  theme,
 }: OrbitalSelectorProps) {
   useEffect(() => {
     if (!isOpen) return;
@@ -316,12 +318,13 @@ export default function OrbitalSelector({
           cx={cx}
           cy={cy}
           r={outerRadius + 10}
-          fill="rgba(10, 10, 10, 0.85)"
-          stroke="url(#holoGrad)"
-          strokeWidth={2}
-          filter="url(#glow)"
+          fill={theme === "light" ? "rgba(255, 255, 255, 0.98)" : "rgba(10, 10, 10, 0.85)"}
+          stroke={theme === "light" ? "#d1d5db" : "url(#holoGrad)"}
+          strokeWidth={theme === "light" ? 1.5 : 2}
+          filter={theme === "light" ? undefined : "url(#glow)"}
           style={{
             backdropFilter: "blur(10px)",
+            ...(theme === "light" ? { boxShadow: "0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" } : {}),
           }}
         />
 
@@ -344,23 +347,35 @@ export default function OrbitalSelector({
               <path
                 d={pathD}
                 fill={
-                  isHovered
+                  theme === "light"
+                    ? isHovered
+                      ? "#ffffff"
+                      : isActive
+                      ? "#f3f4f6"
+                      : "#fafafa"
+                    : isHovered
                     ? "url(#holoGrad)"
                     : isActive
                     ? "rgba(6, 182, 212, 0.15)"
                     : "rgba(13, 17, 23, 0.5)"
                 }
                 stroke={
-                  isActive && !isHovered
+                  theme === "light"
+                    ? isActive && !isHovered
+                      ? "#9ca3af"
+                      : isHovered
+                      ? "#6b7280"
+                      : "#e5e7eb"
+                    : isActive && !isHovered
                     ? "#22d3ee"
                     : isHovered
                     ? "#67e8f9"
                     : "rgba(103, 232, 249, 0.2)"
                 }
-                strokeWidth={isHovered ? 2.5 : isActive ? 2 : 1}
+                strokeWidth={isHovered ? 2 : isActive ? 1.5 : 1}
                 style={{
                   transition: "all 120ms ease-out",
-                  filter: isHovered || isActive ? "url(#glow)" : undefined,
+                  filter: isHovered || isActive ? (theme === "light" ? undefined : "url(#glow)") : undefined,
                   transformOrigin: `${cx}px ${cy}px`,
                   transform: isHovered ? "scale(1.05)" : "scale(1)",
                 }}
@@ -372,25 +387,20 @@ export default function OrbitalSelector({
                 const pos = polarToCartesian(cx, cy, iconR, mid);
                 return (
                   <g transform={`translate(${pos.x - 10}, ${pos.y - 10})`}>
-                    <rect
-                      x={0}
-                      y={0}
-                      width={40}
-                      height={40}
-                      rx={8}
-                      ry={8}
-                      fill={isHovered ? "rgba(34,211,238,0.2)" : "transparent"}
-                      stroke={
-                        isHovered ? "rgba(103,232,249,0.4)" : "transparent"
-                      }
-                      strokeWidth={1.5}
-                    />
                     <g
                       transform="translate(10,10)"
-                      fill={isHovered ? "#0a0a0a" : "#22d3ee"}
-                      stroke={isHovered ? "#67e8f9" : "#22d3ee"}
-                      strokeWidth={0.5}
-                      style={{ filter: isHovered ? "url(#glow)" : undefined }}
+                      style={{
+                        color:
+                          theme === "light"
+                            ? "#000000"
+                            : isHovered
+                            ? "#0a0a0a"
+                            : "#22d3ee",
+                        filter:
+                          isHovered && theme === "holographic"
+                            ? "url(#glow)"
+                            : undefined,
+                      }}
                     >
                       {ToolIcons[tool]}
                     </g>
@@ -405,20 +415,21 @@ export default function OrbitalSelector({
           cx={cx}
           cy={cy}
           r={innerRadius - 8}
-          fill="rgba(0,10,20,0.75)"
-          stroke="url(#holoGrad)"
-          strokeWidth={2}
-          filter="url(#glow)"
+          fill={theme === "light" ? "rgba(255,255,255,0.98)" : "rgba(0,10,20,0.75)"}
+          stroke={theme === "light" ? "#d1d5db" : "url(#holoGrad)"}
+          strokeWidth={theme === "light" ? 1.5 : 2}
+          filter={theme === "light" ? undefined : "url(#glow)"}
         />
         <text
           x={cx}
           y={cy + 4}
           textAnchor="middle"
           fontSize={12}
-          fill="#67e8f9"
+          fill={theme === "light" ? "#6b7280" : "#67e8f9"}
           style={{
             fontWeight: 700,
-            filter: "drop-shadow(0 0 8px rgba(103, 232, 249, 0.6))",
+            letterSpacing: "0.5px",
+            filter: theme === "light" ? undefined : "drop-shadow(0 0 8px rgba(103, 232, 249, 0.6))",
           }}
         >
           TOOLS
@@ -433,15 +444,16 @@ export default function OrbitalSelector({
             width: 80,
             padding: "6px 8px",
             borderRadius: 8,
-            background: "rgba(10, 10, 10, 0.95)",
-            color: "#67e8f9",
+            background: theme === "light" ? "rgba(255, 255, 255, 0.98)" : "rgba(10, 10, 10, 0.95)",
+            color: theme === "light" ? "#1f2937" : "#67e8f9",
             textAlign: "center",
             fontSize: 12,
             fontWeight: 700,
             pointerEvents: "none",
-            boxShadow:
-              "0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(34, 211, 238, 0.3)",
-            border: "1px solid rgba(34, 211, 238, 0.3)",
+            boxShadow: theme === "light"
+              ? "0 4px 12px rgba(0, 0, 0, 0.15), 0 2px 4px rgba(0, 0, 0, 0.1)"
+              : "0 8px 24px rgba(0, 0, 0, 0.8), 0 0 16px rgba(34, 211, 238, 0.3)",
+            border: theme === "light" ? "1px solid rgba(156, 163, 175, 0.5)" : "1px solid rgba(34, 211, 238, 0.3)",
             backdropFilter: "blur(10px)",
           }}
         >

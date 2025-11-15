@@ -7,7 +7,6 @@ import { useUser } from "../hooks/useUser";
 import { AVATAR_PRESETS, AvatarIcon } from "../lib/avatars";
 import { useRoomHistory } from "../hooks/useRoomHistory";
 import RoomHistoryCard from "../components/RoomHistoryCard";
-import AnimatedBackground from "../components/AnimatedBackground";
 import { FaSpinner } from "react-icons/fa";
 
 function HomePageContent() {
@@ -42,7 +41,7 @@ function HomePageContent() {
     e.stopPropagation();
 
     if (!roomName.trim() || !user || !user.username.trim()) return;
-    if (isTransitioning) return; // Prevent multiple clicks
+    if (isTransitioning) return;
 
     saveUser(user);
 
@@ -121,7 +120,7 @@ function HomePageContent() {
   const currentUserDisplayName = user.username.split("#")[0];
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center p-4 pb-24 hero-background overflow-hidden">
+    <main className="relative flex min-h-screen flex-col items-center justify-center p-4 pb-24 overflow-hidden">
       <div className="flex-1 flex flex-col items-center justify-center w-full max-w-6xl py-8">
         <div
           className={`text-center space-y-3 mb-6 ${

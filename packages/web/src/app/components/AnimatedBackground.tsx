@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
-import { type Container, type ISourceOptions } from "@tsparticles/engine";
+import { type ISourceOptions } from "@tsparticles/engine";
 import { loadSlim } from "@tsparticles/slim";
 
 export default function AnimatedBackground() {
@@ -17,7 +17,7 @@ export default function AnimatedBackground() {
     });
   }, []);
 
-  const particlesLoaded = async (container?: Container): Promise<void> => {};
+  const particlesLoaded = async (): Promise<void> => {};
 
   const options: ISourceOptions = useMemo(
     () => ({
@@ -49,7 +49,7 @@ export default function AnimatedBackground() {
           color: "#22d3ee",
           distance: 150,
           enable: true,
-          opacity: 0.3,
+          opacity: 0.2,
           width: 1,
         },
         move: {
@@ -66,10 +66,10 @@ export default function AnimatedBackground() {
           density: {
             enable: true,
           },
-          value: 80,
+          value: 85,
         },
         opacity: {
-          value: 0.5,
+          value: 0.3,
           animation: {
             enable: true,
             speed: 0.5,

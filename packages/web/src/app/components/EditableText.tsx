@@ -6,13 +6,12 @@ import { TextShape } from "../lib/types";
 import { TOOLS } from "../lib/tools";
 import type Konva from "konva";
 
-interface EditableTextProps {
+interface EditableTextProps extends Omit<React.ComponentProps<typeof import('react-konva').Text>, 'shape'> {
   shape: TextShape;
   isEditing: boolean;
   isSelected: boolean;
   activeTool: import("../lib/tools").Tool;
   onShapeChange?: (shape: TextShape) => void;
-  [key: string]: any;
 }
 
 // This is your original font loader
@@ -44,7 +43,7 @@ const EditableText: React.FC<EditableTextProps> = ({
   };
   // --- END FIX ---
 
-  const handleDragEnd = (e: any) => {
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (onShapeChange) {
       const node = e.target;
       const updatedShape: TextShape = {
@@ -56,7 +55,7 @@ const EditableText: React.FC<EditableTextProps> = ({
     }
   };
 
-  const handleTap = (e: any) => {
+  const handleTap = (e: Konva.KonvaEventObject<TouchEvent>) => {
     // Handle double-tap for mobile text editing
     const currentTime = Date.now();
     const timeSinceLastTap = currentTime - lastTapTimeRef.current;
@@ -68,7 +67,8 @@ const EditableText: React.FC<EditableTextProps> = ({
         tapTimeoutRef.current = null;
       }
       if (rest.onDblClick) {
-        rest.onDblClick(e);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        rest.onDblClick(e as any);
       }
       lastTapTimeRef.current = 0;
     } else {

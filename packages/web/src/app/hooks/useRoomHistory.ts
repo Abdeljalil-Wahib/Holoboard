@@ -59,7 +59,7 @@ export const useRoomHistory = () => {
   const addRoomToHistory = useCallback((room: { name: string; slug: string }) => {
     setRooms(prevHistory => {
       const existingEntryIndex = prevHistory.findIndex(r => r.slug === room.slug);
-      let newHistory = [...prevHistory];
+      const newHistory = [...prevHistory];
       if (existingEntryIndex > -1) {
         newHistory[existingEntryIndex] = {
           ...newHistory[existingEntryIndex],

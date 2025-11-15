@@ -8,11 +8,14 @@ import {
   FaUsers,
   FaChevronLeft,
   FaChevronRight,
+  FaSun,
+  FaMoon,
 } from "react-icons/fa";
 import { useRouter } from "next/navigation";
 import io, { Socket } from "socket.io-client";
 import dynamic from "next/dynamic";
 import { HexColorPicker } from "react-colorful";
+import Select from "../../components/Select";
 import { nanoid } from "nanoid";
 import type Konva from "konva";
 import OrbitalSelector from "../../components/OrbitalSelector";
@@ -20,6 +23,7 @@ import MobileToolbar from "../../components/MobileToolbar";
 import { TOOLS, Tool } from "../../lib/tools";
 import { useUser } from "../../hooks/useUser";
 import { useRoomCanvas } from "../../hooks/useRoomCanvas";
+import { useTheme } from "../../hooks/useTheme";
 import type {
   Point,
   RectShape,
@@ -77,6 +81,7 @@ const FONT_WEIGHTS = [
 ];
 
 const ExternalFontLoader: React.FC = () => (
+  // eslint-disable-next-line @next/next/no-page-custom-font
   <link
     href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@400;600;700&display=swap"
     rel="stylesheet"
@@ -109,7 +114,8 @@ export default function BoardPage({
   const [lines, setLines] = useState<Shape[]>([]);
   const [stage, setStage] = useState<StageState>({ scale: 1, x: 0, y: 0 });
   const [isSpacePressed, setIsSpacePressed] = useState(false);
-  const [strokeColor, setStrokeColor] = useState("#67e8f9"); // General shape color
+  const { theme, toggleTheme } = useTheme();
+  const [strokeColor, setStrokeColor] = useState(theme === "light" ? "#000000" : "#67e8f9"); // General shape color
   const [penStrokeWidth, setPenStrokeWidth] = useState(2);
   const [penOpacity, setPenOpacity] = useState(1);
   const [isRectFilled, setIsRectFilled] = useState(false);
@@ -145,7 +151,7 @@ export default function BoardPage({
   const [textAreaStyle, setTextAreaStyle] = useState<React.CSSProperties>({});
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const [isLinkCopied, setIsLinkCopied] = useState(false);
-  const { user, saveUser, isLoading: isUserLoading } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const { getCanvasState, saveCanvasState, clearCanvasState } =
     useRoomCanvas(roomId);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -157,7 +163,7 @@ export default function BoardPage({
   const [pendingOpenEditorId, setPendingOpenEditorId] = useState<string | null>(
     null
   );
-  const [textColor, setTextColor] = useState("#67e8f9");
+  const [textColor, setTextColor] = useState(theme === "light" ? "#000000" : "#67e8f9");
   const [sessionId] = useState(nanoid(8));
   const [fontSize, setFontSize] = useState(24);
   const [fontWeight, setFontWeight] = useState(400);
@@ -205,7 +211,6 @@ export default function BoardPage({
   const fontWeightRef = useRef(fontWeight);
   const fontFamilyRef = useRef(fontFamily);
   const lastCursorEmitTime = useRef(0);
-  const eraserEmitPending = useRef(false);
   const eraserEmitTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -229,6 +234,17 @@ export default function BoardPage({
   useEffect(() => {
     fontFamilyRef.current = fontFamily;
   }, [fontFamily]);
+
+  // Update default colors when theme changes
+  useEffect(() => {
+    if (theme === "light") {
+      setStrokeColor("#000000");
+      setTextColor("#000000");
+    } else {
+      setStrokeColor("#67e8f9");
+      setTextColor("#67e8f9");
+    }
+  }, [theme]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -425,7 +441,7 @@ export default function BoardPage({
 
   // --- Universal Generic Shape Property Updater (for non-text shapes) ---
   const updateSelectedGenericShapeProperty = useCallback(
-    (key: keyof (LineShape | RectShape | CircleShape), value: any) => {
+    (key: keyof (LineShape | RectShape | CircleShape), value: string | number | boolean) => {
       if (selectedShapeIdsRef.current.length === 1) {
         const selectedId = selectedShapeIdsRef.current[0];
         setLines((prevLines) => {
@@ -468,7 +484,7 @@ export default function BoardPage({
 
   // --- Universal Text Property Updater ---
   const updateSelectedTextShape = useCallback(
-    (key: keyof TextShape, value: any) => {
+    (key: keyof TextShape, value: string | number) => {
       if (selectedShapeIdsRef.current.length === 1) {
         const selectedId = selectedShapeIdsRef.current[0];
         setLines((prevLines) => {
@@ -539,6 +555,7 @@ export default function BoardPage({
     const textNode = stage.findOne(`#${pendingOpenEditorId}`);
 
     if (textNode) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handleTextDblClick({ target: textNode } as any);
       setPendingOpenEditorId(null); // Clear the trigger
     }
@@ -880,6 +897,7 @@ export default function BoardPage({
       console.log("🧹 Cleaning up socket connection");
       newSocket.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, isUserLoading, user, handleNewState, sessionId, router]);
 
   // --- AUTO-SAVE TO LOCALSTORAGE ---
@@ -891,7 +909,8 @@ export default function BoardPage({
       // If lines is empty, clear localStorage
       clearCanvasState();
     }
-  }, [lines, saveCanvasState, clearCanvasState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines]);
 
   // --- Toggle Sidebar with ALT Key ---
   useEffect(() => {
@@ -1107,7 +1126,7 @@ export default function BoardPage({
   );
 
   // --- Handler for Double-Click on Stage (to create text) ---
-  const handleStageDblClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStageDblClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (activeTool !== TOOLS.TEXT) return;
 
     const stage = e.target.getStage();
@@ -1153,7 +1172,7 @@ export default function BoardPage({
     });
 
     isDrawing.current = false;
-  };
+  }, [activeTool, shapeCreators, lines, handleNewState, textColor, penOpacity, roomId]);
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (isOrbitalSelectorOpen && e.evt.button === 0) {
@@ -1263,7 +1282,6 @@ export default function BoardPage({
 
     if (activeTool === TOOLS.ERASER) {
       isDrawing.current = true;
-      const pos = getRelativePointerPosition();
       // eraserPath.current = [pos]; // Assuming eraserPath is a ref for points
       return;
     }
@@ -1324,6 +1342,7 @@ export default function BoardPage({
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     // --- Update eraser position for visual indicator ---
     if (activeTool === TOOLS.ERASER) {
@@ -1778,7 +1797,7 @@ export default function BoardPage({
     };
     let newScale = e.evt.deltaY > 0 ? oldScale / scaleBy : oldScale * scaleBy;
     newScale = Math.max(minScale, Math.min(newScale, maxScale));
-    setStage((prevStage) => ({
+    setStage(() => ({
       scale: newScale,
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
@@ -1819,6 +1838,7 @@ export default function BoardPage({
             clearTimeout(tapTimeoutRef.current);
             tapTimeoutRef.current = null;
           }
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           handleStageDblClick(e as any);
           lastTapTime.current = 0;
         } else {
@@ -2029,27 +2049,45 @@ export default function BoardPage({
     <>
       <ExternalFontLoader />
       <TextareaStyles />
-      <div className="flex flex-col h-screen w-screen bg-[#000510] overflow-hidden relative animate-holo-fade-in">
+      <div className={`flex flex-col h-screen w-screen overflow-hidden relative animate-holo-fade-in ${
+        theme === "light" ? "bg-gray-50" : "bg-[#000510]"
+      }`}>
         {/* Holographic background effects */}
-        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.03),transparent_50%)] pointer-events-none" />
+        {theme === "holographic" && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-purple-500/5 pointer-events-none" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(6,182,212,0.03),transparent_50%)] pointer-events-none" />
+          </>
+        )}
 
         {/* Top Bar - Holographic navbar */}
-        <div className={`relative p-2 text-center text-sm text-cyan-100/90 border-b border-cyan-400/40 bg-black/40 backdrop-blur-xl flex justify-between items-center px-4 shadow-[0_0_30px_rgba(6,182,212,0.15)] z-50 transition-transform duration-300 ${
+        <div className={`relative p-2 text-center text-sm border-b flex justify-between items-center px-4 z-50 transition-transform duration-300 ${
           isMobile && !isNavbarVisible ? '-translate-y-full' : 'translate-y-0'
+        } ${
+          theme === "light"
+            ? "bg-white/95 text-gray-800 border-gray-300 shadow-sm backdrop-blur-sm"
+            : "bg-black/40 text-cyan-100/90 border-cyan-400/40 backdrop-blur-xl shadow-[0_0_30px_rgba(6,182,212,0.15)]"
         }`}>
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10 pointer-events-none" />
+          {theme === "holographic" && (
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-purple-500/10 pointer-events-none" />
+          )}
           
           {/* Navbar toggle indicator (mobile only) */}
           {isMobile && (
             <button
               onClick={toggleNavbar}
-              className="absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full w-12 h-6 bg-gradient-to-b from-black/80 to-transparent backdrop-blur-md border-x border-b border-cyan-400/40 rounded-b-lg flex items-start justify-center pt-1 shadow-[0_4px_15px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_25px_rgba(6,182,212,0.5)] transition-all z-50"
+              className={`absolute left-1/2 -translate-x-1/2 bottom-0 translate-y-full w-12 h-6 backdrop-blur-md border-x border-b rounded-b-lg flex items-start justify-center pt-1 transition-all z-50 ${
+                theme === "light"
+                  ? "bg-gradient-to-b from-gray-300/90 to-transparent border-gray-400 shadow-sm hover:shadow-md"
+                  : "bg-gradient-to-b from-black/80 to-transparent border-cyan-400/40 shadow-[0_4px_15px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_25px_rgba(6,182,212,0.5)]"
+              }`}
               aria-label={isNavbarVisible ? "Hide navbar" : "Show navbar"}
             >
               <svg
-                className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${
+                className={`w-4 h-4 transition-transform duration-300 ${
                   isNavbarVisible ? 'rotate-180' : 'rotate-0'
+                } ${
+                  theme === "light" ? "text-gray-700" : "text-cyan-400"
                 }`}
                 fill="none"
                 stroke="currentColor"
@@ -2066,13 +2104,15 @@ export default function BoardPage({
               title="Copy share link"
               className={`relative ${
                 isMobile ? "p-2" : "px-3 py-1.5"
-              } bg-gradient-to-br ${
-                isLinkCopied
-                  ? "from-green-500/30 to-green-600/30 border-green-400/40"
-                  : "from-cyan-500/20 to-cyan-600/20 border-cyan-400/40"
-              } ${
-                isLinkCopied ? "text-green-400" : "text-cyan-300"
-              } rounded-md hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 border transition-all text-xs font-semibold flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50`}
+              } rounded-md border transition-all text-xs font-semibold flex items-center gap-2 backdrop-blur-sm z-50 ${
+                theme === "light"
+                  ? isLinkCopied
+                    ? "bg-gradient-to-br from-green-400 to-green-500 border-green-600 text-white"
+                    : "bg-gradient-to-br from-gray-200 to-gray-300 border-gray-400 text-gray-800 hover:from-gray-300 hover:to-gray-400"
+                  : isLinkCopied
+                    ? "bg-gradient-to-br from-green-500/30 to-green-600/30 border-green-400/40 text-green-400 hover:from-green-500/40 hover:to-green-600/40 shadow-[0_0_15px_rgba(34,197,94,0.3)] hover:shadow-[0_0_25px_rgba(34,197,94,0.5)]"
+                    : "bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 border-cyan-400/40 text-cyan-300 hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
+              }`}
             >
               <FaLink
                 size={12}
@@ -2090,7 +2130,11 @@ export default function BoardPage({
               title="Toggle Participants List"
               className={`relative ${
                 isMobile ? "p-2" : "px-3 py-1.5"
-              } bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 rounded-md hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 border border-cyan-400/40 transition-all text-xs font-semibold flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50`}
+              } rounded-md border transition-all text-xs font-semibold flex items-center gap-2 backdrop-blur-sm z-50 ${
+                theme === "light"
+                  ? "bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800 border-gray-400 hover:from-gray-300 hover:to-gray-400"
+                  : "bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 border-cyan-400/40 hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
+              }`}
             >
               <FaUsers size={12} />
               {!isMobile && (
@@ -2111,7 +2155,11 @@ export default function BoardPage({
                 uniqueParticipants.map((participant) => (
                   <span
                     key={participant.profile.id}
-                    className="inline-flex items-center justify-center h-7 w-7 flex-shrink-0 rounded-full ring-2 ring-cyan-400/40 bg-gradient-to-br from-cyan-500/30 to-purple-500/30 backdrop-blur-sm transition-all text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.4)] hover:shadow-[0_0_20px_rgba(6,182,212,0.6)] hover:scale-110"
+                    className={`inline-flex items-center justify-center h-7 w-7 flex-shrink-0 rounded-full ring-2 backdrop-blur-sm transition-all hover:scale-110 ${
+                      theme === "light"
+                        ? "ring-gray-400 bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800 shadow-sm hover:shadow-md"
+                        : "ring-cyan-400/40 bg-gradient-to-br from-cyan-500/30 to-purple-500/30 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.4)] hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]"
+                    }`}
                     title={participant.profile.username.split("#")[0]}
                     aria-label={`${
                       participant.profile.username.split("#")[0]
@@ -2126,12 +2174,16 @@ export default function BoardPage({
             </div>
           </div>
           <div className="flex-1 text-center relative z-10">
-            <strong className="text-cyan-400/80">
+            <strong className={theme === "light" ? "text-gray-600" : "text-cyan-400/80"}>
               {isMobile ? "" : "Board :"}
             </strong>{" "}
             <span
-              className={`font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-cyan-300 ${
-                isMobile ? "text-xs" : "animate-pulse"
+              className={`font-bold ${
+                theme === "light"
+                  ? "text-gray-900"
+                  : "text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-purple-300 to-cyan-300"
+              } ${
+                isMobile ? "text-xs" : theme === "holographic" ? "animate-pulse" : ""
               }`}
             >
               {roomId}
@@ -2139,10 +2191,27 @@ export default function BoardPage({
           </div>
           <div className="flex-1 text-right flex items-center justify-end gap-2 relative z-10">
             <button
+              onClick={toggleTheme}
+              className={`${
+                isMobile ? "p-2" : "px-3 py-1.5"
+              } ${
+                theme === "light"
+                  ? "bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800 border-gray-400 hover:from-gray-300 hover:to-gray-400"
+                  : "bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 border-cyan-400/40 hover:from-cyan-500/30 hover:to-cyan-600/30"
+              } rounded-md active:from-cyan-500/40 active:to-cyan-600/40 border transition-all text-xs font-semibold shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50`}
+              title={theme === "light" ? "Switch to Holographic Theme" : "Switch to Light Theme"}
+            >
+              {theme === "light" ? <FaMoon size={16} /> : <FaSun size={16} />}
+            </button>
+            <button
               onClick={handleGoHome}
               className={`${
                 isMobile ? "p-2" : "px-3 py-1.5"
-              } bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 rounded-md hover:from-cyan-500/30 hover:to-cyan-600/30 active:from-cyan-500/40 active:to-cyan-600/40 border border-cyan-400/40 transition-all text-xs font-semibold shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50`}
+              } ${
+                theme === "light"
+                  ? "bg-gradient-to-br from-gray-200 to-gray-300 text-gray-800 border-gray-400 hover:from-gray-300 hover:to-gray-400"
+                  : "bg-gradient-to-br from-cyan-500/20 to-cyan-600/20 text-cyan-300 border-cyan-400/40 hover:from-cyan-500/30 hover:to-cyan-600/30"
+              } rounded-md active:from-cyan-500/40 active:to-cyan-600/40 border transition-all text-xs font-semibold shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] backdrop-blur-sm z-50`}
               title="Go to Home Page"
             >
               <FaHome size={16} />
@@ -2157,6 +2226,7 @@ export default function BoardPage({
             style={textAreaStyle}
             defaultValue={initialTextValue}
             placeholder={placeholderValue}
+            className={theme === "light" ? "light-textarea" : undefined}
             onBlur={() => handleTextDblClick(null)}
             onKeyDown={(e) => {
               e.stopPropagation();
@@ -2181,23 +2251,26 @@ export default function BoardPage({
 
         {/* Main Content (Container for Sidebar + Canvas) */}
         <div className="flex flex-row h-full overflow-hidden relative">
-          {/* Left Toolbar - Desktop or Bottom Sheet - Mobile */}
+          {/* Left Toolbar - Desktop or Right Drawer - Mobile */}
           <div
             className={`
-              ${isMobile ? "fixed bottom-0 left-0 right-0" : "absolute"} z-50 
-              ${isMobile ? "w-full max-h-[60vh]" : "w-56 h-full flex-shrink-0"}
-              bg-gradient-to-b from-black/90 via-black/85 to-black/90 backdrop-blur-2xl
+              ${isMobile ? "fixed top-0 bottom-0 right-0" : "absolute"} z-50 
+              ${isMobile ? "w-64" : "w-56 h-full flex-shrink-0"}
+              backdrop-blur-2xl
               ${
-                isMobile ? "border-t rounded-t-3xl" : "border-r"
-              } border-cyan-400/40 
+                isMobile ? "border-l rounded-l-3xl" : "border-r"
+              } 
               transition-all duration-300 ease-in-out
-              shadow-[0_-4px_30px_rgba(6,182,212,0.3)]
-              before:absolute before:inset-0 before:bg-gradient-to-b before:from-cyan-500/5 before:via-purple-500/5 before:to-cyan-500/5 before:pointer-events-none
+              ${
+                theme === "light"
+                  ? "bg-white/95 border-gray-300 shadow-lg"
+                  : "bg-gradient-to-b from-black/90 via-black/85 to-black/90 border-cyan-400/40 shadow-[0_-4px_30px_rgba(6,182,212,0.3)] before:absolute before:inset-0 before:bg-gradient-to-b before:from-cyan-500/5 before:via-purple-500/5 before:to-cyan-500/5 before:pointer-events-none"
+              }
               ${
                 isMobile
                   ? isSidebarVisible
-                    ? "translate-y-0"
-                    : "translate-y-full"
+                    ? "translate-x-0"
+                    : "translate-x-full"
                   : isSidebarVisible
                   ? "translate-x-0"
                   : "-translate-x-full"
@@ -2209,19 +2282,44 @@ export default function BoardPage({
           >
             <div
               className={`${
-                isMobile ? "p-4 pb-8" : "p-4"
+                isMobile ? "p-4" : "p-4"
               } flex flex-col items-center h-full relative z-10 gap-4`}
             >
               {/* Drag Handle for mobile */}
-              {isMobile && (
-                <div className="w-full flex justify-center mb-2 cursor-grab active:cursor-grabbing">
-                  <div className="w-12 h-1.5 rounded-full bg-cyan-400/40" />
+              {isMobile && false && (
+                <div className="w-full flex justify-center mb-2">
+                  <button
+                    onClick={toggleSidebar}
+                    className={`w-12 h-6 backdrop-blur-md border-x border-b rounded-b-lg flex items-start justify-center pt-1 transition-all ${
+                      theme === "light"
+                        ? "bg-gradient-to-b from-gray-300/90 to-transparent border-gray-400 shadow-sm hover:shadow-md"
+                        : "bg-gradient-to-b from-black/80 to-transparent border-cyan-400/40 shadow-[0_4px_15px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_25px_rgba(6,182,212,0.5)]"
+                    }`}
+                    aria-label={isSidebarVisible ? "Hide sidebar" : "Show sidebar"}
+                  >
+                    <svg
+                      className={`w-4 h-4 transition-transform duration-300 ${
+                        isSidebarVisible ? 'rotate-180' : 'rotate-0'
+                      } ${
+                        theme === "light" ? "text-gray-700" : "text-cyan-400"
+                      }`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
                 </div>
               )}
 
               {/* Header row with Manual button */}
               <div className="w-full flex items-center justify-between">
-                <p className="font-semibold text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+                <p className={`font-semibold text-base ${
+                  theme === "light"
+                    ? "text-gray-900"
+                    : "text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400"
+                }`}>
                   {isMobile ? "Controls" : "Manual"}
                 </p>
                 <button
@@ -2234,7 +2332,11 @@ export default function BoardPage({
                   className={`${
                     isMobile ? "w-8 h-8" : "w-10 h-10"
                   } rounded-md flex items-center justify-center cursor-pointer transition-all border backdrop-blur-sm ${
-                    showManual
+                    theme === "light"
+                      ? showManual
+                        ? "bg-black border-gray-700 hover:bg-black"
+                        : "bg-gradient-to-br from-gray-200 to-gray-300 border-gray-400 hover:from-gray-300 hover:to-gray-400"
+                      : showManual
                       ? "bg-gradient-to-br from-cyan-500 to-cyan-600 border-cyan-400/60 shadow-[0_0_20px_rgba(6,182,212,0.6)]"
                       : "bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)]"
                   }`}
@@ -2242,44 +2344,54 @@ export default function BoardPage({
                   <FaBook
                     size={isMobile ? 14 : 18}
                     aria-hidden
-                    color={showManual ? "#000000" : "#67e8f9"}
+                    color={theme === "light" ? (showManual ? "#9CA3AF" : "#374151") : (showManual ? "#000000" : "#67e8f9")}
                   />
                 </button>
               </div>
 
               <div
-                className={`flex-1 overflow-y-auto min-h-0 w-full ${
-                  isMobile ? "max-h-[45vh]" : "h-full"
-                } space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
+                className={`flex-1 overflow-y-auto min-h-0 w-full space-y-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}
               >
                 {showManual ? (
                   <div
                     className={`text-center w-full space-y-4 ${
                       isMobile ? "p-3" : "p-4"
-                    } bg-gradient-to-br from-cyan-500/10 to-purple-500/10 rounded-md text-sm text-cyan-100/80 border border-cyan-400/20 backdrop-blur-sm shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]`}
+                    } rounded-md text-sm border backdrop-blur-sm ${
+                      theme === "light"
+                        ? "bg-gradient-to-br from-blue-50 to-gray-50 text-gray-700 border-gray-300 shadow-sm"
+                        : "bg-gradient-to-br from-cyan-500/10 to-purple-500/10 text-cyan-100/80 border-cyan-400/20 shadow-[inset_0_0_20px_rgba(6,182,212,0.1)]"
+                    }`}
                   >
                     {/* Basic Controls - Only show on desktop or when explicitly opened */}
                     {!isMobile && (
                       <>
                         <div className="space-y-2.5 text-left">
-                          <p className="text-xs font-semibold">
+                          <p className={`text-xs font-semibold ${
+                            theme === "light" ? "text-gray-900" : "text-cyan-100"
+                          }`}>
                             Getting Started
                           </p>
-                          <p className="text-xs">
+                          <p className={`text-xs ${
+                            theme === "light" ? "text-gray-700" : "text-cyan-100/80"
+                          }`}>
                             <strong className="font-semibold">
                               Hold Right-Click
                             </strong>{" "}
                             anywhere on the canvas to open the tool selector.
-                            Hover and release to select, or use Numpad
+                            Hover and release to select
                           </p>
                         </div>
 
                         {/* Keyboard Shortcuts */}
                         <div className="space-y-2.5 text-left">
-                          <p className="text-xs font-semibold">
+                          <p className={`text-xs font-semibold ${
+                            theme === "light" ? "text-gray-900" : "text-cyan-100"
+                          }`}>
                             Keyboard Shortcuts
                           </p>
-                          <ul className="text-xs list-disc list-inside space-y-1">
+                          <ul className={`text-xs list-disc list-inside space-y-1 ${
+                            theme === "light" ? "text-gray-700" : "text-cyan-100/80"
+                          }`}>
                             <li>P - Pen</li>
                             <li>S - Select - Delete</li>
                             <li>C - Circle</li>
@@ -2294,7 +2406,9 @@ export default function BoardPage({
                       </>
                     )}
                     {isMobile && (
-                      <div className="text-xs text-cyan-100/70">
+                      <div className={`text-xs ${
+                        theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                      }`}>
                         Use the mobile toolbar at the bottom to select tools.
                         Double-tap to create text or edit existing text.
                       </div>
@@ -2311,11 +2425,15 @@ export default function BoardPage({
                       <p
                         className={`${
                           isMobile ? "text-xs" : "text-sm"
-                        } text-cyan-100/90 font-semibold mb-1`}
+                        } font-semibold mb-1 ${
+                          theme === "light" ? "text-gray-800" : "text-cyan-100/90"
+                        }`}
                       >
                         Zoom Controls
                       </p>
-                      <div className="text-xs text-cyan-100/70 mb-2">
+                      <div className={`text-xs mb-2 ${
+                        theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                      }`}>
                         Zoom: {Math.round(stage.scale * 100)}%
                       </div>
                       <input
@@ -2330,13 +2448,19 @@ export default function BoardPage({
                             scale: Number(e.target.value),
                           }))
                         }
-                        className="holo-slider w-full"
+                        className={`w-full ${
+                          theme === "light" ? "light-slider" : "holo-slider"
+                        }`}
                       />
                       <button
                         onClick={() => setStage({ scale: 1, x: 0, y: 0 })}
                         className={`w-full ${
                           isMobile ? "py-1" : "py-1.5"
-                        } bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-xs font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)] mt-2`}
+                        } rounded-md border transition-all text-xs font-semibold mt-2 ${
+                          theme === "light"
+                            ? "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300 hover:from-gray-200 hover:to-gray-300 shadow-sm hover:shadow-md"
+                            : "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 border-cyan-400/30 hover:from-cyan-500/30 hover:to-purple-500/30 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                        }`}
                       >
                         Reset View
                       </button>
@@ -2351,11 +2475,15 @@ export default function BoardPage({
                       <p
                         className={`${
                           isMobile ? "text-xs" : "text-sm"
-                        } text-cyan-100/90 font-semibold mb-1`}
+                        } font-semibold mb-1 ${
+                          theme === "light" ? "text-gray-800" : "text-cyan-100/90"
+                        }`}
                       >
                         Global Glow
                       </p>
-                      <div className="text-xs text-cyan-100/70 mb-2">
+                      <div className={`text-xs mb-2 ${
+                        theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                      }`}>
                         Intensity: {shadowBlur}
                       </div>
                       <input
@@ -2365,7 +2493,9 @@ export default function BoardPage({
                         step="1"
                         value={shadowBlur}
                         onChange={(e) => setShadowBlur(Number(e.target.value))}
-                        className="holo-slider w-full"
+                        className={`w-full ${
+                          theme === "light" ? "light-slider" : "holo-slider"
+                        }`}
                       />
                     </div>
                     {/* --- END --- */}
@@ -2387,7 +2517,9 @@ export default function BoardPage({
                         <p
                           className={`${
                             isMobile ? "text-xs" : "text-sm"
-                          } text-cyan-100/90 font-semibold`}
+                          } font-semibold ${
+                            theme === "light" ? "text-gray-800" : "text-cyan-100/90"
+                          }`}
                         >
                           {activeTool} Options
                         </p>
@@ -2408,14 +2540,20 @@ export default function BoardPage({
                           />
                         </div>
                         <div
-                          className="w-10 h-10 rounded-full border-2 border-cyan-400/60 mx-auto shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                          className={`w-10 h-10 rounded-full border-2 mx-auto ${
+                            theme === "light"
+                              ? "border-gray-400 shadow-sm"
+                              : "border-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                          }`}
                           style={{ backgroundColor: strokeColor }}
                           title={strokeColor}
                         />
                         <div className="w-full">
                           <label
                             htmlFor="stroke-width"
-                            className="block text-xs text-cyan-100/70 mb-3"
+                            className={`block text-xs mb-3 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Stroke Width: {penStrokeWidth}
                           </label>
@@ -2434,13 +2572,17 @@ export default function BoardPage({
                               );
                             }}
                             onMouseUp={() => handleNewState(lines)}
-                            className="holo-slider w-full"
+                            className={`w-full ${
+                              theme === "light" ? "light-slider" : "holo-slider"
+                            }`}
                           />
                         </div>
                         <div className="w-full">
                           <label
                             htmlFor="opacity"
-                            className="block text-xs text-cyan-100/70 mb-3"
+                            className={`block text-xs mb-3 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Opacity: {Math.round(penOpacity * 100)}%
                           </label>
@@ -2460,14 +2602,18 @@ export default function BoardPage({
                               );
                             }}
                             onMouseUp={() => handleNewState(lines)}
-                            className="holo-slider w-full"
+                            className={`w-full ${
+                              theme === "light" ? "light-slider" : "holo-slider"
+                            }`}
                           />
                         </div>
                         {activeTool === TOOLS.RECTANGLE && (
                           <div className="w-full flex items-center justify-between px-2">
                             <label
                               htmlFor="rect-fill"
-                              className="text-sm text-cyan-100/70"
+                              className={`text-sm ${
+                                theme === "light" ? "text-gray-700" : "text-cyan-100/70"
+                              }`}
                             >
                               Fill Rectangle
                             </label>
@@ -2478,7 +2624,7 @@ export default function BoardPage({
                               onChange={(e) => {
                                 setIsRectFilled(e.target.checked);
                               }}
-                              className="holo-checkbox"
+                              className={theme === "light" ? "light-checkbox" : "holo-checkbox"}
                             />
                           </div>
                         )}
@@ -2486,7 +2632,9 @@ export default function BoardPage({
                           <div className="w-full flex items-center justify-between px-2">
                             <label
                               htmlFor="circle-fill"
-                              className="text-sm text-cyan-100/70"
+                              className={`text-sm ${
+                                theme === "light" ? "text-gray-700" : "text-cyan-100/70"
+                              }`}
                             >
                               Fill Circle
                             </label>
@@ -2497,7 +2645,7 @@ export default function BoardPage({
                               onChange={(e) => {
                                 setIsCircleFilled(e.target.checked);
                               }}
-                              className="holo-checkbox"
+                              className={theme === "light" ? "light-checkbox" : "holo-checkbox"}
                             />
                           </div>
                         )}
@@ -2514,11 +2662,15 @@ export default function BoardPage({
                         <p
                           className={`${
                             isMobile ? "text-xs" : "text-sm"
-                          } text-cyan-100/90 font-semibold mb-1`}
+                          } font-semibold mb-1 ${
+                            theme === "light" ? "text-gray-800" : "text-cyan-100/90"
+                          }`}
                         >
                           Eraser Options
                         </p>
-                        <div className="text-xs text-cyan-100/70 mb-2">
+                        <div className={`text-xs mb-2 ${
+                          theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                        }`}>
                           Radius: {eraserRadius}px
                         </div>
                         <input
@@ -2530,13 +2682,19 @@ export default function BoardPage({
                           onChange={(e) =>
                             setEraserRadius(Number(e.target.value))
                           }
-                          className="holo-slider w-full"
+                          className={`w-full ${
+                            theme === "light" ? "light-slider" : "holo-slider"
+                          }`}
                         />
                         <button
                           onClick={handleClear}
-                          className={`w-full ${
+                          className={`w-full mt-5 ${
                             isMobile ? "py-1" : "py-1.5"
-                          } bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 rounded-md hover:from-cyan-500/30 hover:to-purple-500/30 border border-cyan-400/30 transition-all text-sm font-semibold shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]`}
+                          } rounded-md border transition-all text-sm font-semibold ${
+                            theme === "light"
+                              ? "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border-gray-300 hover:from-gray-200 hover:to-gray-300 shadow-sm hover:shadow-md"
+                              : "bg-gradient-to-r from-cyan-500/20 to-purple-500/20 text-cyan-100 border-cyan-400/30 hover:from-cyan-500/30 hover:to-purple-500/30 shadow-[0_0_10px_rgba(6,182,212,0.3)] hover:shadow-[0_0_15px_rgba(6,182,212,0.5)]"
+                          }`}
                         >
                           Clear Board
                         </button>
@@ -2553,7 +2711,9 @@ export default function BoardPage({
                         <p
                           className={`${
                             isMobile ? "text-xs" : "text-sm"
-                          } text-cyan-100/90 font-semibold`}
+                          } font-semibold ${
+                            theme === "light" ? "text-gray-800" : "text-cyan-100/90"
+                          }`}
                         >
                           Text Options
                         </p>
@@ -2575,7 +2735,11 @@ export default function BoardPage({
                           />
                         </div>
                         <div
-                          className="w-10 h-10 rounded-full border-2 border-cyan-400/60 mx-auto shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                          className={`w-10 h-10 rounded-full border-2 mx-auto ${
+                            theme === "light"
+                              ? "border-gray-400 shadow-sm"
+                              : "border-cyan-400/60 shadow-[0_0_10px_rgba(6,182,212,0.4)]"
+                          }`}
                           style={{ backgroundColor: textColor }}
                           title={textColor}
                         />
@@ -2583,38 +2747,34 @@ export default function BoardPage({
                         <div className="w-full">
                           <label
                             htmlFor="font-family"
-                            className="block text-xs text-cyan-100/70 mb-2"
+                            className={`block text-xs mb-2 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Font:
                           </label>
-                          <select
-                            id="font-family"
+                          <Select
+                            theme={theme === "light" ? "light" : "holo"}
                             value={fontFamily}
-                            onChange={(e) => {
-                              handleFontFamilyChange(e.target.value);
+                            onChange={(val) => {
+                              handleFontFamilyChange(val as string);
                               handleNewState(lines);
                             }}
-                            className="w-full holo-select"
-                            style={{ fontFamily: fontFamily }}
-                          >
-                            {Object.entries(FONT_PRESETS).map(
-                              ([name, family]) => (
-                                <option
-                                  key={name}
-                                  value={family}
-                                  style={{ fontFamily: family }}
-                                >
-                                  {name}
-                                </option>
-                              )
-                            )}
-                          </select>
+                            className="w-full"
+                            options={Object.entries(FONT_PRESETS).map(([name, family]) => ({
+                              label: name,
+                              value: family,
+                              style: { fontFamily: family },
+                            }))}
+                          />
                         </div>
                         {/* --- FONT SIZE CONTROL --- */}
                         <div className="w-full">
                           <label
                             htmlFor="font-size"
-                            className="block text-xs text-cyan-100/70 mb-3"
+                            className={`block text-xs mb-3 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Size: {fontSize}px
                           </label>
@@ -2631,14 +2791,18 @@ export default function BoardPage({
                             onChange={(e) =>
                               handleFontSizeChange(Number(e.target.value))
                             }
-                            className="holo-slider w-full"
+                            className={`w-full ${
+                              theme === "light" ? "light-slider" : "holo-slider"
+                            }`}
                           />
                         </div>
                         {/* --- FONT WEIGHT SELECTOR --- */}
                         <div className="w-full">
                           <label
                             htmlFor="font-style"
-                            className="block text-xs text-cyan-100/70 mb-2"
+                            className={`block text-xs mb-2 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Font Style:{" "}
                             {
@@ -2646,27 +2810,24 @@ export default function BoardPage({
                                 ?.label
                             }
                           </label>
-                          <select
-                            id="font-weight"
+                          <Select
+                            theme={theme === "light" ? "light" : "holo"}
                             value={fontWeight}
-                            onChange={(e) => {
-                              handleFontWeightChange(Number(e.target.value));
+                            onChange={(val) => {
+                              handleFontWeightChange(Number(val));
                               handleNewState(lines);
                             }}
-                            className="w-full holo-select"
-                          >
-                            {FONT_WEIGHTS.map((weight) => (
-                              <option key={weight.value} value={weight.value}>
-                                {weight.label}
-                              </option>
-                            ))}
-                          </select>
+                            className="w-full"
+                            options={FONT_WEIGHTS.map((w) => ({ label: w.label, value: w.value }))}
+                          />
                         </div>
                         {/* --- OPACITY CONTROL --- */}
                         <div className="w-full">
                           <label
                             htmlFor="text-opacity"
-                            className="block text-xs text-cyan-100/70 mb-3"
+                            className={`block text-xs mb-3 ${
+                              theme === "light" ? "text-gray-600" : "text-cyan-100/70"
+                            }`}
                           >
                             Opacity: {Math.round(penOpacity * 100)}%
                           </label>
@@ -2683,12 +2844,16 @@ export default function BoardPage({
                             onChange={(e) =>
                               handleTextOpacityChange(Number(e.target.value))
                             }
-                            className="holo-slider w-full"
+                            className={`w-full ${
+                              theme === "light" ? "light-slider" : "holo-slider"
+                            }`}
                           />
                         </div>
                         {/* ----------------------------- */}
 
-                        <p className="text-xs text-cyan-100/50 mt-2">
+                        <p className={`text-xs mt-2 ${
+                          theme === "light" ? "text-gray-500" : "text-cyan-100/50"
+                        }`}>
                           {isMobile
                             ? "Double-tap to place/edit text"
                             : "Double-click on the canvas to place new text."}
@@ -2698,10 +2863,14 @@ export default function BoardPage({
 
                     {activeTool === TOOLS.SELECT && (
                       <div className="text-center w-full">
-                        <p className="text-sm text-foreground/80 font-semibold">
+                        <p className={`text-sm font-semibold ${
+                          theme === "light" ? "text-gray-800" : "text-foreground/80"
+                        }`}>
                           Select Options
                         </p>
-                        <p className="text-xs text-foreground/60 mt-2">
+                        <p className={`text-xs mt-2 ${
+                          theme === "light" ? "text-gray-600" : "text-foreground/60"
+                        }`}>
                           Click a shape to select. Ctrl/Cmd+Click for
                           multi-select. Drag to marquee select. Hit Del to
                           delete selected shape.
@@ -2715,7 +2884,11 @@ export default function BoardPage({
           </div>
 
           {/* Canvas Area  */}
-          <main className="flex-1 relative bg-[linear-gradient(to_right,theme(colors.slate.800)_1px,transparent_1px),linear-gradient(to_bottom,theme(colors.slate.800)_1px,transparent_1px)] bg-[size:96px_96px]">
+          <main className={`flex-1 relative ${
+            theme === "light"
+              ? "bg-white"
+              : "bg-[linear-gradient(to_right,theme(colors.slate.800)_1px,transparent_1px),linear-gradient(to_bottom,theme(colors.slate.800)_1px,transparent_1px)] bg-[size:96px_96px]"
+          }`}>
             {/* Sidebar Toggle Button - Desktop only */}
             {!isMobile && (
               <button
@@ -2729,10 +2902,13 @@ export default function BoardPage({
                       absolute top-1/14 -translate-y-1/2 z-30
                       h-16 w-6 rounded-r-md 
                       flex items-center justify-center 
-                      bg-cyan-950/70 hover:bg-cyan-900 
-                      border border-l-0 border-cyan-300/30 
-                      text-cyan-300 transition-all duration-300 shadow-xl
+                      border border-l-0 transition-all duration-300 shadow-xl
                       ${isSidebarVisible ? "left-56" : "left-0"}
+                      ${
+                        theme === "light"
+                          ? "bg-gray-200 hover:bg-gray-300 border-gray-400 text-gray-700"
+                          : "bg-cyan-950/70 hover:bg-cyan-900 border-cyan-300/30 text-cyan-300"
+                      }
                   `}
               >
                 {isSidebarVisible ? (
@@ -2742,26 +2918,33 @@ export default function BoardPage({
                 )}
               </button>
             )}
-            
-            {/* Sidebar Toggle Indicator - Mobile only */}
+
+            {/* Sidebar Toggle Button - Mobile only */}
             {isMobile && (
               <button
                 onClick={toggleSidebar}
-                className="absolute right-0 top-1/2 -translate-y-1/2 w-6 h-16 bg-gradient-to-l from-black/80 to-transparent backdrop-blur-md border-y border-l border-cyan-400/40 rounded-l-lg flex items-center justify-end pr-1 shadow-[-4px_0_15px_rgba(6,182,212,0.3)] hover:shadow-[-4px_0_25px_rgba(6,182,212,0.5)] transition-all z-40"
-                aria-label={isSidebarVisible ? "Hide sidebar" : "Show sidebar"}
+                title={isSidebarVisible ? "Hide Controls" : "Show Controls"}
+                className={`
+                  fixed z-30 right-0 top-1/2 -translate-y-1/2
+                  h-16 w-6 rounded-l-md 
+                  flex items-center justify-center 
+                  border border-r-0 transition-all duration-300
+                  ${
+                    theme === "light"
+                      ? "bg-gradient-to-b from-gray-300/90 to-transparent border-gray-400 text-gray-700 shadow-sm hover:shadow-md"
+                      : "bg-gradient-to-b from-black/80 to-transparent border-cyan-400/40 text-cyan-300 shadow-[0_4px_15px_rgba(6,182,212,0.3)] hover:shadow-[0_4px_25px_rgba(6,182,212,0.5)]"
+                  }
+                `}
+                aria-label={isSidebarVisible ? "Hide controls" : "Show controls"}
               >
-                <svg
-                  className={`w-4 h-4 text-cyan-400 transition-transform duration-300 ${
-                    isSidebarVisible ? 'rotate-0' : 'rotate-180'
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
+                <FaChevronRight
+                  size={12}
+                  className={`${isSidebarVisible ? "rotate-0" : "rotate-180"} transition-transform`}
+                />
               </button>
             )}
+            
+
 
             <div
               className={`w-full h-full relative ${isMobile && isToolbarVisible ? "pb-20" : ""}`}
@@ -2794,6 +2977,7 @@ export default function BoardPage({
                 remoteCursors={remoteCursors}
                 eraserPosition={eraserPosition}
                 eraserRadius={eraserRadius}
+                theme={theme}
               />
             </div>
           </main>
@@ -2806,7 +2990,13 @@ export default function BoardPage({
               isMobile ? (isToolbarVisible ? "bottom-24" : "bottom-6") : "bottom-6"
             }`}
           >
-            <div className="px-4 py-2 rounded-md bg-cyan-300 text-black font-semibold shadow-lg transform-gpu transition-all duration-200 ease-out translate-y-0 opacity-100">
+            <div
+              className={`px-4 py-2 rounded-md font-semibold shadow-lg transform-gpu transition-all duration-200 ease-out translate-y-0 opacity-100 border ${
+                theme === "light"
+                  ? "bg-gray-200 text-black border-gray-300"
+                  : "bg-cyan-300 text-black border-cyan-200/60"
+              }`}
+            >
               {toast}
             </div>
           </div>
@@ -2821,6 +3011,7 @@ export default function BoardPage({
             onToolSelect={setActiveTool}
             onHoverTool={handleOrbitalHover}
             hoveredTool={hoveredTool}
+            theme={theme}
           />
         )}
 
@@ -2831,6 +3022,7 @@ export default function BoardPage({
             onToolSelect={setActiveTool}
             isVisible={isToolbarVisible}
             onToggleVisibility={toggleToolbar}
+            theme={theme}
           />
         )}
 

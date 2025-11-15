@@ -14,7 +14,7 @@ export default function HomeLayout({
           backgroundPosition: "center 40%",
         }}
       >
-        <div className="absolute inset-0 bg-background/50" />
+        <div className="absolute inset-0 bg-black/45" />
         <AnimatedBackground />
       </div>
       {children}

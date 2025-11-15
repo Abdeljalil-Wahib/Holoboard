@@ -8,7 +8,6 @@ import {
   Rect,
   Transformer,
   Circle,
-  Group,
   Text,
 } from "react-konva";
 import Konva from "konva";
@@ -22,7 +21,6 @@ import {
 } from "../lib/types";
 import EditableText from "./EditableText";
 import { TOOLS } from "../lib/tools";
-import { AvatarIcon } from "../lib/avatars";
 
 interface StageState {
   scale: number;
@@ -61,6 +59,7 @@ interface WhiteboardProps {
   remoteCursors: Record<string, { x: number; y: number; user: UserProfile }>;
   eraserPosition: { x: number; y: number } | null;
   eraserRadius: number;
+  theme: "holographic" | "light";
 }
 
 export default function Whiteboard({
@@ -85,6 +84,7 @@ export default function Whiteboard({
   remoteCursors,
   eraserPosition,
   eraserRadius,
+  theme,
 }: WhiteboardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -191,14 +191,17 @@ export default function Whiteboard({
         onMouseUp={onMouseUp}
         onTouchStart={(e) => {
           onTouchStart?.(e);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onMouseDown(e as any);
         }}
         onTouchMove={(e) => {
           onTouchMove?.(e);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onMouseMove(e as any);
         }}
         onTouchEnd={(e) => {
           onTouchEnd?.(e);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onMouseUp(e as any);
         }}
         onWheel={onWheel}
@@ -212,7 +215,7 @@ export default function Whiteboard({
             y={-10000}
             width={20000}
             height={20000}
-            fill="transparent"
+            fill={theme === "light" ? "#ffffff" : "transparent"}
           />
 
           {shapes.map((shape) => {
@@ -316,6 +319,10 @@ export default function Whiteboard({
               newBox.width < 5 || newBox.height < 5 ? oldBox : newBox
             }
             onTransformEnd={updateAllShapesState}
+            borderStroke={theme === "light" ? "#6b7280" : "#67e8f9"}
+            anchorStroke={theme === "light" ? "#374151" : "#67e8f9"}
+            anchorFill={theme === "light" ? "#9ca3af" : "#67e8f9"}
+            anchorCornerRadius={2}
           />
 
           {marquee.active && (
@@ -324,10 +331,10 @@ export default function Whiteboard({
               y={marquee.y}
               width={marquee.width}
               height={marquee.height}
-              stroke="#67e8f9"
+              stroke={theme === "light" ? "#9ca3af" : "#67e8f9"}
               strokeWidth={1 / stage.scale}
               dash={[4 / stage.scale, 2 / stage.scale]}
-              fill="rgba(103, 232, 249, 0.1)"
+              fill={theme === "light" ? "rgba(156, 163, 175, 0.15)" : "rgba(103, 232, 249, 0.1)"}
               listening={false}
             />
           )}
@@ -338,9 +345,9 @@ export default function Whiteboard({
               x={eraserPosition.x}
               y={eraserPosition.y}
               radius={eraserRadius}
-              stroke="#ff006e"
+              stroke={theme === "light" ? "#6b7280" : "#ff006e"}
               strokeWidth={2 / stage.scale}
-              fill="rgba(255, 0, 110, 0.1)"
+              fill={theme === "light" ? "rgba(107, 114, 128, 0.12)" : "rgba(255, 0, 110, 0.1)"}
               listening={false}
               dash={[4 / stage.scale, 4 / stage.scale]}
             />
