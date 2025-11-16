@@ -41,6 +41,7 @@ import {
   createCircleShape,
   createTextShape,
 } from "../../lib/types";
+import { ConnectionModal } from "../../components/ConnectionModal";
 
 type ShapeCreators = {
   createLineShape: typeof import("../../lib/types").createLineShape;
@@ -212,6 +213,10 @@ export default function BoardPage({
   const fontFamilyRef = useRef(fontFamily);
   const lastCursorEmitTime = useRef(0);
   const eraserEmitTimeoutRef = useRef<number | null>(null);
+
+  // Modal state for server connection
+  const [showConnectionModal, setShowConnectionModal] = useState(true);
+  const [connectionLoading, setConnectionLoading] = useState(true);
 
   useEffect(() => {
     historyRef.current = history;
@@ -678,6 +683,8 @@ export default function BoardPage({
     console.log("User profile for socket:", uniqueUserProfile);
 
     newSocket.on("connect", () => {
+      setConnectionLoading(false);
+      setTimeout(() => setShowConnectionModal(false), 800); // Small delay for UX
       console.log("✅ Connected to Socket.IO server with ID:", newSocket.id);
       console.log("Joining room:", roomId);
 
@@ -2944,8 +2951,6 @@ export default function BoardPage({
               </button>
             )}
             
-
-
             <div
               className={`w-full h-full relative ${isMobile && isToolbarVisible ? "pb-20" : ""}`}
             >
@@ -3092,6 +3097,11 @@ export default function BoardPage({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Connection Modal */}
+        {showConnectionModal && (
+          <ConnectionModal loading={connectionLoading} />
         )}
       </div>
     </>
