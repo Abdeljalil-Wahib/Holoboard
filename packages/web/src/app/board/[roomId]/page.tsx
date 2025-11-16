@@ -214,9 +214,10 @@ export default function BoardPage({
   const lastCursorEmitTime = useRef(0);
   const eraserEmitTimeoutRef = useRef<number | null>(null);
 
-  // Modal state for server connection
-  const [showConnectionModal, setShowConnectionModal] = useState(true);
-  const [connectionLoading, setConnectionLoading] = useState(true);
+  // HUD/Toast state for server connection
+  const [showConnectionModal, setShowConnectionModal] = useState(false);
+  const [connectionLoading, setConnectionLoading] = useState(false);
+  const [hasShownConnected, setHasShownConnected] = useState(false);
 
   useEffect(() => {
     historyRef.current = history;
@@ -658,6 +659,17 @@ export default function BoardPage({
       return;
     }
 
+    // Check localStorage for cold start completion
+    const coldStartKey = `cold_start_done`;
+    const hasColdStart = localStorage.getItem(coldStartKey) === "true";
+    setHasShownConnected(hasColdStart);
+
+    // If cold start not done, show HUD and loading
+    if (!hasColdStart) {
+      setShowConnectionModal(true);
+      setConnectionLoading(true);
+    }
+
     console.log("Initializing socket connection...");
     const socketUrl =
       process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
@@ -683,8 +695,16 @@ export default function BoardPage({
     console.log("User profile for socket:", uniqueUserProfile);
 
     newSocket.on("connect", () => {
-      setConnectionLoading(false);
-      setTimeout(() => setShowConnectionModal(false), 800); // Small delay for UX
+      // Only show HUD if cold start not done
+      if (!hasColdStart) {
+        setConnectionLoading(false);
+        setShowConnectionModal(true);
+        // Mark cold start as done in localStorage
+        localStorage.setItem(coldStartKey, "true");
+        setHasShownConnected(true);
+        // Hide HUD after a short delay
+        setTimeout(() => setShowConnectionModal(false), 1800);
+      }
       console.log("✅ Connected to Socket.IO server with ID:", newSocket.id);
       console.log("Joining room:", roomId);
 
@@ -2954,6 +2974,12 @@ export default function BoardPage({
             <div
               className={`w-full h-full relative ${isMobile && isToolbarVisible ? "pb-20" : ""}`}
             >
+              {/* Connection HUD/Toast - inside canvas area */}
+              {showConnectionModal && !hasShownConnected && (
+                <div className="absolute top-6 right-6 z-50">
+                  <ConnectionModal loading={connectionLoading} />
+                </div>
+              )}
               {isRoomFull && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-red-400 text-2xl font-bold z-10">
                   Room is Full!
@@ -3099,10 +3125,8 @@ export default function BoardPage({
           </div>
         )}
 
-        {/* Connection Modal */}
-        {showConnectionModal && (
-          <ConnectionModal loading={connectionLoading} />
-        )}
+        {/* Connection HUD/Toast (moved inside canvas area) */}
+        {/* (see above for actual render) */}
       </div>
     </>
   );
